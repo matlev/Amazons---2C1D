@@ -1,26 +1,43 @@
-import java.math.*;
 
 public class Gameboard {
 
-		public final int BQ = 0x1; // A black queen
-		public final int WQ = 0x2; // A white queen
-		public final int ARROW = 0x3;      // An arrow
+		public final int BQ = 0x1;			// A black queen
+		public final int WQ = 0x2;			// A white queen
+		public final int ARROW = 0x3;		// An arrow
 		
-		private int[][] board;
+		private WhiteQueen[] W_pieces;
+		private BlackQueen[] B_pieces;
+		private Gamepiece[][] board;
 		
+		// Set up the initial position of the pieces
 		public Gameboard() {
-			board = new int[][]{
-				{0,0,0,WQ,0,0,WQ,0,0,0},
-				{0,0,0,0,0,0,0,0,0,0},
-				{0,0,0,0,0,0,0,0,0,0},
-				{WQ,0,0,0,0,0,0,0,0,WQ},
-				{0,0,0,0,0,0,0,0,0,0},
-				{0,0,0,0,0,0,0,0,0,0},
-				{BQ,0,0,0,0,0,0,0,0,BQ},
-				{0,0,0,0,0,0,0,0,0,0},
-				{0,0,0,0,0,0,0,0,0,0},
-				{0,0,0,BQ,0,0,BQ,0,0,0}
+			// White queens
+			W_pieces = new WhiteQueen[4];
+			W_pieces[0] = new WhiteQueen("d1");
+			W_pieces[1] = new WhiteQueen("g1");
+			W_pieces[2] = new WhiteQueen("a4");
+			W_pieces[3] = new WhiteQueen("j4");
+			
+			// Black queens
+			B_pieces = new BlackQueen[4];
+			B_pieces[0] = new BlackQueen("a7");
+			B_pieces[1] = new BlackQueen("j7");
+			B_pieces[2] = new BlackQueen("d10");
+			B_pieces[3] = new BlackQueen("g10");
+			
+			board = new Gamepiece[][]{
+					{new Blank("a1"),new Blank("b1"),new Blank("c1"),W_pieces[0],new Blank("e1"),new Blank("f1"),W_pieces[1],new Blank("h1"),new Blank("i1"),new Blank("j1")},
+					{new Blank("a2"),new Blank("b2"),new Blank("c2"),new Blank("d2"),new Blank("e2"),new Blank("f2"),new Blank("g2"),new Blank("h2"),new Blank("i2"),new Blank("j2")},
+					{new Blank("a3"),new Blank("b3"),new Blank("c3"),new Blank("d3"),new Blank("e3"),new Blank("f3"),new Blank("g3"),new Blank("h3"),new Blank("i3"),new Blank("j3")},
+					{W_pieces[2],new Blank("b4"),new Blank("c4"),new Blank("d4"),new Blank("e4"),new Blank("f4"),new Blank("g4"),new Blank("h4"),new Blank("i4"),W_pieces[3]},
+					{new Blank("a5"),new Blank("b5"),new Blank("c5"),new Blank("d5"),new Blank("e5"),new Blank("f5"),new Blank("g5"),new Blank("h5"),new Blank("i5"),new Blank("j5")},
+					{new Blank("a6"),new Blank("b6"),new Blank("c6"),new Blank("d6"),new Blank("e6"),new Blank("f6"),new Blank("g6"),new Blank("h6"),new Blank("i6"),new Blank("j6")},
+					{B_pieces[0],new Blank("b7"),new Blank("c7"),new Blank("d7"),new Blank("e7"),new Blank("f7"),new Blank("g7"),new Blank("h7"),new Blank("i7"),B_pieces[1]},
+					{new Blank("a8"),new Blank("b8"),new Blank("c8"),new Blank("d8"),new Blank("e8"),new Blank("f8"),new Blank("g8"),new Blank("h8"),new Blank("i8"),new Blank("j8")},
+					{new Blank("a9"),new Blank("b9"),new Blank("c9"),new Blank("d9"),new Blank("e9"),new Blank("f9"),new Blank("g9"),new Blank("h9"),new Blank("i9"),new Blank("j9")},
+					{new Blank("a10"),new Blank("b10"),new Blank("c10"),B_pieces[2],new Blank("e10"),new Blank("f10"),B_pieces[3],new Blank("h10"),new Blank("i10"),new Blank("j10")}
 			};
+			
 		}
 		
 		// Accepts the x and y coordinates of the piece to move and where to move it, 
@@ -35,8 +52,25 @@ public class Gameboard {
 			String move = checkLegalMove(p_x, p_y, to_x, to_y);
 			
 			if(move.equals("valid")) {
-				int pieceToMove = this.board[p_x][p_y];
-				this.board[p_y][p_x] = 0;
+				Gamepiece pieceToMove = this.board[p_y][p_x];
+				
+				// Update the array of pieces so we can keep track of their location easier
+				String pos = pieceToMove.position();
+				if(pieceToMove instanceof WhiteQueen) {
+					for(int i = 0; i < 4; i++) {
+						if(W_pieces[0].position().equals(pos)) {
+							W_pieces[0].move(p_x, p_y);
+						}
+					}
+				} else {
+					for(int i = 0; i < 4; i++) {
+						if(B_pieces[0].position().equals(pos)) {
+							B_pieces[0].move(p_x, p_y);
+						}
+					}
+				}
+				
+				this.board[p_y][p_x] = new Blank(p_x, p_y);
 				this.board[to_y][to_x] = pieceToMove;
 				
 				return "" + (char)(to_x + 65) + "" + (to_y + 1);
@@ -81,7 +115,7 @@ public class Gameboard {
 			String move = checkLegalMove(p_x, p_y, to_x, to_y);
 			
 			if(move.equals("valid")) {
-				this.board[to_y][to_x] = ARROW;
+				this.board[to_y][to_x] = new Arrow(to_x, to_y);
 				
 				return "" + (char)(to_x + 65) + "" + (to_y + 1);
 			}
@@ -125,35 +159,35 @@ public class Gameboard {
 			if(y_diff == 0) { // Only need to check left and right
 				for(int i = 1; i <= x_diff; i++) {
 					if(to_x > p_x) {
-						if(this.board[p_y][p_x + i] != 0) { return ""; }
-					} else if(this.board[p_y][p_x - i] != 0) { return ""; }
+						if(this.board[p_y][p_x + i].val() != 0) { return ""; }
+					} else if(this.board[p_y][p_x - i].val() != 0) { return ""; }
 				}
 			} else if(x_diff == 0) { // Check up and down
 				for(int i = 1; i <= y_diff; i++) {
 					if(to_y > p_y) {
-						if(this.board[p_y + i][p_x] != 0) { return ""; }
-					} else if(this.board[p_y - i][p_x] != 0) { return ""; }
+						if(this.board[p_y + i][p_x].val() != 0) { return ""; }
+					} else if(this.board[p_y - i][p_x].val() != 0) { return ""; }
 				}
 			} else { // Check diagonally
 				for(int i = 1; i <= y_diff; i++) {
 					// Moving northeast
 					if(to_y > p_y && to_x > p_x) {
-						if(this.board[p_y + i][p_x + i] != 0) { return ""; }
+						if(this.board[p_y + i][p_x + i].val() != 0) { return ""; }
 					}
 					
 					// Moving southeast
 					if(to_y < p_y && to_x > p_x) {
-						if(this.board[p_y - i][p_x + i] != 0) { return ""; }
+						if(this.board[p_y - i][p_x + i].val() != 0) { return ""; }
 					}
 					
 					// Moving northwest
 					if(to_y > p_y && to_x < p_x) {
-						if(this.board[p_y + i][p_x - i] != 0) { return ""; }
+						if(this.board[p_y + i][p_x - i].val() != 0) { return ""; }
 					}
 					
 					// Moving southwest
 					if(to_y < p_y && to_x < p_x) {
-						if(this.board[p_y - i][p_x - i] != 0) { return ""; }
+						if(this.board[p_y - i][p_x - i].val() != 0) { return ""; }
 					}
 				}
 			}
@@ -165,7 +199,7 @@ public class Gameboard {
 			if(x < 0 || x > 9 || y < 0 || y > 9) {
 				return 0;
 			} else {
-				return this.board[y][x];
+				return this.board[y][x].val();
 			}
 		}
 		
@@ -177,33 +211,35 @@ public class Gameboard {
 		}
 		
 		// Get the board instance
-		public int[][] getBoard() {
+		public Gamepiece[][] getBoard() {
 			return this.board;
 		}
 		
 		// Print out the board
-		public void print() {
-			System.out.println("   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___ ");
+		public String toString() {
+			String b = "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
 			for(int i = 9; i >= 0; i--){
-				if(i < 9){System.out.print((i + 1) + " |");}
-				else{System.out.print((i + 1) + "|");}
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
 				
 				for(int j = 0; j < 10; j++){
-					int square = this.board[i][j];
+					int square = this.board[i][j].val();
 					if(square == 0) {
-						System.out.print("___|");
-					} else if(square == 0x1) {
-						System.out.print("_B_|");
-					} else if(square == 0x2) {
-						System.out.print("_W_|");
+						b += "___|";
+					} else if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
 					} else {
-						System.out.print("_X_|");
+						b += "_X_|";
 					}
 				}
-				System.out.println();
+				b += "\n";
 			}
 			
-			System.out.println("    a   b   c   d   e   f   g   h   i   j");
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+			
+			return b;
 		
 		}
 }
