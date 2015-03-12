@@ -1,9 +1,5 @@
 
 public class Gameboard {
-
-		public final int BQ = 0x1;			// A black queen
-		public final int WQ = 0x2;			// A white queen
-		public final int ARROW = 0x3;		// An arrow
 		
 		private WhiteQueen[] W_pieces;
 		private BlackQueen[] B_pieces;
@@ -58,14 +54,14 @@ public class Gameboard {
 				String pos = pieceToMove.position();
 				if(pieceToMove instanceof WhiteQueen) {
 					for(int i = 0; i < 4; i++) {
-						if(W_pieces[0].position().equals(pos)) {
-							W_pieces[0].move(p_x, p_y);
+						if(W_pieces[0].position().equalsIgnoreCase(pos)) {
+							W_pieces[0].move(to_x, to_y);
 						}
 					}
 				} else {
 					for(int i = 0; i < 4; i++) {
 						if(B_pieces[0].position().equals(pos)) {
-							B_pieces[0].move(p_x, p_y);
+							B_pieces[0].move(to_x, to_y);
 						}
 					}
 				}
@@ -213,6 +209,14 @@ public class Gameboard {
 		// Get the board instance
 		public Gamepiece[][] getBoard() {
 			return this.board;
+		}
+		
+		public WhiteQueen[] getWhiteQueens() {
+			return this.W_pieces;
+		}
+		
+		public BlackQueen[] getBlackQueens() {
+			return this.B_pieces;
 		}
 		
 		// Print out the board
