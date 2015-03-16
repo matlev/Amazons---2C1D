@@ -3,22 +3,54 @@ public class Blank extends Gamepiece{
 
 		private static final float KAPPA = 0.2f;
 		public final byte val;
-		public byte wq, bq, wk, bk;
+		public byte wq, bq, wk, bk, emptyNeighbours;
 	
 		public Blank(byte x, byte y) {
 			super(x, y);
 			wq = bq = wk = bk = 127; // Maximum positive value for a byte -> substitute for positive infinity
 			val = 0;
+			emptyNeighbours = 8;
+		}
+		
+		public Blank(byte x, byte y, int nb) {
+			super(x, y);
+			wq = bq = wk = bk = 127; // Maximum positive value for a byte -> substitute for positive infinity
+			val = 0;
+			emptyNeighbours = (byte)nb;
 		}
 		
 		public Blank(String c) {
 			super(c);
 			wq = bq = wk = bk = 127;
 			val = 0;
+			emptyNeighbours = 8;
+		}
+		
+		public Blank(String c, int nb) {
+			super(c);
+			wq = bq = wk = bk = 127;
+			val = 0;
+			emptyNeighbours = (byte)nb;
 		}
 		
 		public byte val() {
 			return val;
+		}
+		
+		public void setEmptyNeighbours(byte spaces) {
+			emptyNeighbours = spaces;
+		}
+		
+		public void incrementEmptyNeighbours() {
+			int temp = emptyNeighbours;
+			temp++;
+			emptyNeighbours = (byte)temp;
+		}
+		
+		public void decrementEmptyNeighbours() {
+			int temp = emptyNeighbours;
+			temp--;
+			emptyNeighbours = (byte)temp;
 		}
 		
 		// The minimum number of "Queen" moves it takes for a player to reach this square
@@ -101,11 +133,11 @@ public class Blank extends Gamepiece{
 		// Evaluation function that rewards moves in earlier phases of the game that replace
 		// clear local disadvantages by small disadvantages and small advantages by clear advantages.
 		public float getLocalizedQueenScore() {
-			return (float)(Math.pow(2.0, (-wq)) - Math.pow(2, (-bq))); // 2^(-wq) - 2^(-bk)
+			return (float)(Math.pow(2.0, ((double)-wq)) - Math.pow(2, ((double)-bq))); // 2^(-wq) - 2^(-bk)
 		}
 		
 		public float getLocalizedKingScore() {
-			return Math.min(1, (float)(Math.max(-1, (bk - wk))/6)); // min(1, max(-1, (bk - wk)/6))
+			return Math.min(1, (float)(Math.max(-1, ((int)bk - (int)wk))/6)); // min(1, max(-1, (bk - wk)/6))
 		}
 		
 		// Used to estimate how many moves are left until the filling stage of the game.  When
@@ -114,7 +146,7 @@ public class Blank extends Gamepiece{
 			if(wq == 127 || bq == 127) {
 				return 0f;
 			} else {
-				return (float)Math.pow(2, (-1)*Math.abs(wq - bq)); // 2^(-|wq - bq|)
+				return (float)Math.pow(2, (-1)*Math.abs((int)wq - (int)bq)); // 2^(-|wq - bq|)
 			}
 		}
 }
