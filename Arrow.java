@@ -1,14 +1,14 @@
 
 public class Arrow extends Gamepiece{
 
-	public final int val;
+	public final byte val;
 	
-	public Arrow(int x, int y) {
+	public Arrow(byte x, byte y) {
 		super(x, y);
 		val = -1;
 	}
 	
-	public Arrow(char x, int y) {
+	public Arrow(char x, byte y) {
 		super(x, y);
 		val = -1;
 	}
@@ -22,7 +22,7 @@ public class Arrow extends Gamepiece{
 		return super.position();
 	}
 	
-	public int val() {
+	public byte val() {
 		return val;
 	}
 	

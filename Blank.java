@@ -1,28 +1,28 @@
 
 public class Blank extends Gamepiece{
 
-		private static final double KAPPA = 0.2;
-		public final int val;
-		public double wq, bq, wk, bk;
+		private static final float KAPPA = 0.2f;
+		public final byte val;
+		public byte wq, bq, wk, bk;
 	
-		public Blank(int x, int y) {
+		public Blank(byte x, byte y) {
 			super(x, y);
-			wq = bq = wk = bk = Double.POSITIVE_INFINITY;
+			wq = bq = wk = bk = 127; // Maximum positive value for a byte -> substitute for positive infinity
 			val = 0;
 		}
 		
 		public Blank(String c) {
 			super(c);
-			wq = bq = wk = bk = Double.POSITIVE_INFINITY;
+			wq = bq = wk = bk = 127;
 			val = 0;
 		}
 		
-		public int val() {
+		public byte val() {
 			return val;
 		}
 		
 		// The minimum number of "Queen" moves it takes for a player to reach this square
-		public void setQueenMoves(int player, int moves) {
+		public void setQueenMoves(byte player, byte moves) {
 			if(player == 1) {
 				this.wq = moves;
 			} else {
@@ -31,7 +31,7 @@ public class Blank extends Gamepiece{
 		}
 		
 		// The minimum number of "King" moves it takes for a player to reach this square
-		public void setKingMoves(int player, int moves) {
+		public void setKingMoves(byte player, byte moves) {
 			if(player == 1) {
 				this.wk = moves;
 			} else {
@@ -41,17 +41,17 @@ public class Blank extends Gamepiece{
 		
 		// Resets the king and queen move scores to infinity
 		public void reset() {
-			wq = bq = wk = bk = Double.POSITIVE_INFINITY;
+			wq = bq = wk = bk = 127;
 		}
 		
 		// Returns the local "Queen Move" score for this square.  This evaluation becomes more
 		// and more important during the main game and gives very good estimates of the expected 
 		// territory shortly before the filling phase.
-		public float getQueenDelta(int player) {
+		public float getQueenDelta(byte player) {
 			float delta = 0;
 			
 			// Neither player can reach this square
-			if(Double.isInfinite(wq) && Double.isInfinite(bq)) {
+			if(wq == 127 && bq == 127) {
 				delta = 0f;
 			}
 			
@@ -76,10 +76,10 @@ public class Blank extends Gamepiece{
 		// Returns the local "King Move" score for this square.  This evaluation rewards balanced 
 		// distributions of the player's amazons on the board or helps to hinder the opponent from 
 		// reaching such a distribution. This is most important at the beginning of the game.
-		public float getKingDelta(int player) {
+		public float getKingDelta(byte player) {
 			float delta = 0;
 			
-			if(Double.isInfinite(wk) && Double.isInfinite(bk)) {
+			if(wk == 127 && bk == 127) {
 				delta = 0f;
 			}
 			
@@ -91,7 +91,7 @@ public class Blank extends Gamepiece{
 				delta = -1f;
 			}
 			
-			if(Double.compare(wk, bk) == 0) {
+			if(wk == bk) {
 				delta = (float)(Math.pow((-1.0d), (double)player)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
 			}
 			
@@ -110,11 +110,11 @@ public class Blank extends Gamepiece{
 		
 		// Used to estimate how many moves are left until the filling stage of the game.  When
 		// each player has their own territories, the sum of all of squares will be 0.
-		public double getPartitionedScore() {
-			if(Double.isInfinite(wq) || Double.isInfinite(bq)) {
-				return 0d;
+		public float getPartitionedScore() {
+			if(wq == 127 || bq == 127) {
+				return 0f;
 			} else {
-				return Math.pow(2, (-1)*Math.abs(wq - bq)); // 2^(-|wq - bq|)
+				return (float)Math.pow(2, (-1)*Math.abs(wq - bq)); // 2^(-|wq - bq|)
 			}
 		}
 }

@@ -36,10 +36,18 @@ public class Gameboard {
 			
 		}
 		
+		// Allows the creation of a new board with a predefined position
+		public Gameboard(Gamepiece[][] board, WhiteQueen[] wqs, BlackQueen[] bqs) {
+			this.board = board;
+			
+			W_pieces = wqs;
+			B_pieces = bqs;	
+		}
+		
 		// Accepts the x and y coordinates of the piece to move and where to move it, 
 		// and returns the new position.  Checks for a legal move (diagonal or orthogonal,
 		// with no objects obstructing the path)
-		public String movePiece(int p_x, int p_y, int to_x, int to_y) {
+		public String movePiece(byte p_x, byte p_y, byte to_x, byte to_y) {
 			// Decremented to allow for more "natural" move input (coordinates start at 1 instead of 0)
 			p_x--;
 			p_y--;
@@ -60,7 +68,7 @@ public class Gameboard {
 					}
 				} else {
 					for(int i = 0; i < 4; i++) {
-						if(B_pieces[0].position().equals(pos)) {
+						if(B_pieces[0].position().equalsIgnoreCase(pos)) {
 							B_pieces[0].move(to_x, to_y);
 						}
 					}
@@ -77,13 +85,10 @@ public class Gameboard {
 		}
 		
 		// Overloaded method to handle a-j column names instead of #'s
-		public String movePiece(char p_x, int p_y, char to_x, int to_y) {
-			int px = (int)p_x;
-			int tox = (int)to_x;
-			
+		public String movePiece(char p_x, byte p_y, char to_x, byte to_y) {
 			// Convert letters to numbers (uppercase letters have a value from 65 - 90)
-			px = (px > 96 ? px - 96 : px - 64);
-			tox = (tox > 96 ? tox - 96 : tox - 64);
+			byte px = (byte)(p_x > 96 ? p_x - 96 : p_x - 64);
+			byte tox = (byte)(to_x > 96 ? to_x - 96 : to_x - 64);
 			
 			return movePiece(px, p_y, tox, to_y);
 		}
@@ -93,16 +98,16 @@ public class Gameboard {
 			char init = from.charAt(0);
 			char dest = to.charAt(0);
 			
-			int p_x = ((int)init > 96 ? (int)init - 96 : (int)init - 64);
-			int p_y = Integer.parseInt(from.substring(1));
-			int to_x = ((int)dest > 96 ? (int)dest - 96 : (int)dest - 64);
-			int to_y = Integer.parseInt(to.substring(1));
+			byte p_x = (byte)((int)init > 96 ? (int)init - 96 : (int)init - 64);
+			byte p_y = (byte)Integer.parseInt(from.substring(1));
+			byte to_x = (byte)((int)dest > 96 ? (int)dest - 96 : (int)dest - 64);
+			byte to_y = (byte)Integer.parseInt(to.substring(1));
 			
 			return movePiece(p_x, p_y, to_x, to_y);
 		}
 		
 		// Shoots an arrow to a square, blocking it off
-		public String shootArrow(int p_x, int p_y, int to_x, int to_y) {
+		public String shootArrow(byte p_x, byte p_y, byte to_x, byte to_y) {
 			// Decremented to allow for more "natural" move input (coordinates start at 1 instead of 0)
 			p_x--;
 			p_y--;
@@ -124,10 +129,10 @@ public class Gameboard {
 			char init = from.charAt(0);
 			char dest = to.charAt(0);
 			
-			int p_x = ((int)init > 96 ? (int)init - 96 : (int)init - 64);
-			int p_y = Integer.parseInt(from.substring(1));
-			int to_x = ((int)dest > 96 ? (int)dest - 96 : (int)dest - 64);
-			int to_y = Integer.parseInt(to.substring(1));
+			byte p_x = (byte)(init > 96 ? init - 96 : init - 64);
+			byte p_y = (byte)Integer.parseInt(from.substring(1));
+			byte to_x = (byte)(dest > 96 ? dest - 96 : dest - 64);
+			byte to_y = (byte)Integer.parseInt(to.substring(1));
 			
 			return shootArrow(p_x, p_y, to_x, to_y);
 		}
