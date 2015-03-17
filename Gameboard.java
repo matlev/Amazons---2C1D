@@ -1,6 +1,9 @@
+import java.util.ArrayList;
+
 
 public class Gameboard {
 		
+		private static final int WHITE = 1, BLACK = 2;
 		private WhiteQueen[] W_pieces;
 		private BlackQueen[] B_pieces;
 		private Gamepiece[][] board;
@@ -77,7 +80,6 @@ public class Gameboard {
 						}
 					}
 				}
-				 System.out.println("Blanks: " + blanks);
 				
 				// Update the array of pieces so we can keep track of their location easier
 				String pos = pieceToMove.position();
@@ -228,6 +230,300 @@ public class Gameboard {
 			return "valid";
 		}
 		
+		// Reset all the king and queen move counts for every blank square on the map.
+		private void resetBlankMoveCounts() {
+			for(int j = 0; j < 10; j++) {
+				for(int i = 0; i < 10; i++) {
+					if(board[j][i] instanceof Blank) {
+						((Blank)board[j][i]).reset();
+					}
+				}
+			}
+		}
+		
+		// Generate a Queen-step map for every blank square on the board for each player.
+		// The algorithm makes queen moves from each queen's location and labels any square it can reach as distance 1.
+		// It saves these squares to a list and then tries to make moves from all of these squares and label and new
+		// spaces as distance 2.  This continues on until our list is empty.
+		private void generateQueenMoves() {
+			// For each Queen, go through all of their possible steps, store each square as a 1, and save the squares to an array
+			ArrayList<Blank> list = new ArrayList<Blank>();
+			
+			// Make steps for each white queen on the board
+			for(WhiteQueen queen : W_pieces) {
+				String pos = queen.position();
+				int x = pos.charAt(0) - 65;
+				int y = Integer.parseInt(pos.substring(1)) - 1;
+				
+				// Append the Blank spaces generated from this queen's position to the new list
+				list.addAll(genQueenMovesHelper(x, y, 1, WHITE));
+			}
+				
+			if(!list.isEmpty()){
+				generateQueenMoves(list, 2, WHITE);
+			}
+			
+			list.clear();
+			
+			// Make steps for each black queen on the board
+			for(BlackQueen queen : B_pieces) {
+				String pos = queen.position();
+				int x = pos.charAt(0) - 65;
+				int y = Integer.parseInt(pos.substring(1)) - 1;
+				
+				// Append the Blank spaces generated from this queen's position to the new list
+				list.addAll(genQueenMovesHelper(x, y, 1, BLACK));
+			}
+				
+			if(!list.isEmpty()){
+				generateQueenMoves(list, 2, BLACK);
+			}
+		}
+		
+		// A helper function to assist in calculating the smallest distance to every square for a player.
+		// It accepts a list of Blanks to move from next, a step counter to determine how many steps we're
+		// taking at this point, and a flag for which player we're counting steps for.  This functions calls
+		// itself recursively for as long as list isn't blank.
+		private void generateQueenMoves(ArrayList<Blank> list, int stepCount, int player) {
+			ArrayList<Blank> newList = new ArrayList<Blank>();
+			
+			for(Blank square : list) {
+				String pos = square.position();
+				int x = pos.charAt(0) - 65;
+				int y = Integer.parseInt(pos.substring(1)) - 1;
+				
+				newList.addAll(genQueenMovesHelper(x, y, stepCount, player));
+			}
+			
+			// If our new list isn't empty, re-run the function with the new squares and an incremented step count
+			if(!newList.isEmpty()) {
+				generateQueenMoves(newList, stepCount++, player);
+			}
+		}
+		
+		// The meat and potatoes of the queen move generator.  Handles out of bounds checking, only writing
+		// a value if it's smaller than the square's current distance, and stops checking a direction if we reach an obstacle.
+		private ArrayList<Blank> genQueenMovesHelper(int x, int y, int stepCount, int player) {
+			ArrayList<Blank> list = new ArrayList<Blank>();
+			
+			// Set up some variables for the iteration
+			boolean done = false, U = false, D = false, L = false, R = false, UR = false, DL = false, UL = false, DR = false;
+			int stepSize = 1;
+			
+			do {
+				// Check that every direction from this queen has been checked as far as possible
+				int up = y + stepSize;
+				int down = y - stepSize;
+				int right = x + stepSize;
+				int left = x - stepSize;
+				
+				if(up > 9) {
+					U = true;
+					UR = true;
+					UL = true;
+				}
+				
+				if(down < 0) {
+					D = true;
+					DL = true;
+					DR = true;
+				}
+				
+				if(left < 0) {
+					L = true;
+					UL = true;
+					DL = true;
+				}
+				
+				if(right > 9) {
+					R = true;
+					UR = true;
+					DR = true;
+				}
+				
+				if(U && D && L && R && UR && UL && DR && DL) {
+					done = true;
+				}
+				
+				if(player == WHITE) {
+					// Need to look up
+					if(!U) {
+						if(board[up][x].val() != 0) {
+							U = true;
+						} else {
+							if(((Blank)board[up][x]).wq > stepCount) {
+								// We don't want to add Blanks to the list that have already been added
+								((Blank)board[up][x]).setQueenMoves(stepCount, player);
+								list.add((Blank) board[up][x]);
+							}	
+						}
+					}
+					
+					// Need to look down
+					if(!D) {
+						if(board[down][x].val() != 0) {
+							D = true;
+						} else if(((Blank)board[down][x]).wq > stepCount) {
+							((Blank)board[down][x]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[down][x]);
+						}
+					}
+					
+					// Need to look left
+					if(!L) {
+						if(board[y][left].val() != 0) {
+							L = true;
+						} else if(((Blank)board[y][left]).wq > stepCount) {
+							((Blank)board[y][left]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[y][left]);
+						}
+					}
+					
+					// Need to look right
+					if(!R) {
+						if(board[y][right].val() != 0) {
+							R = true;
+						} else if(((Blank)board[y][right]).wq > stepCount) {
+							((Blank)board[y][right]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[y][right]);
+						}
+					}
+					
+					// Need to look up-right
+					if(!UR) {
+						if(board[up][right].val() != 0) {
+							UR = true;
+						} else if(((Blank)board[up][right]).wq > stepCount) {
+							((Blank)board[up][right]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[up][right]);
+						}
+					}
+					
+					// Need to look up-left
+					if(!UL) {
+						if(board[up][left].val() != 0) {
+							UL = true;
+						} else if(((Blank)board[up][left]).wq > stepCount) {
+							((Blank)board[up][left]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[up][left]);
+						}
+					}
+					
+					// Need to look down-left
+					if(!DL) {
+						if(board[down][left].val() != 0) {
+							DL = true;
+						} else if(((Blank)board[down][left]).wq > stepCount) {
+							((Blank)board[down][left]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[down][left]);
+						}
+					}
+					
+					// Need to look down-right
+					if(!DR) {
+						if(board[down][right].val() != 0) {
+							DR = true;
+						} else if(((Blank)board[down][right]).wq > stepCount) {
+							((Blank)board[down][right]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[down][right]);
+						}
+					}
+				} else {
+					// Need to look up
+					if(!U) {
+						if(board[up][x].val() != 0) {
+							U = true;
+						} else {
+							if(((Blank)board[up][x]).bq > stepCount) {
+								((Blank)board[up][x]).setQueenMoves(stepCount, player);
+								list.add((Blank) board[up][x]);
+							}	
+						}
+					}
+					
+					// Need to look down
+					if(!D) {
+						if(board[down][x].val() != 0) {
+							D = true;
+						} else if(((Blank)board[down][x]).bq > stepCount) {
+							((Blank)board[down][x]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[down][x]);
+						}
+					}
+					
+					// Need to look left
+					if(!L) {
+						if(board[y][left].val() != 0) {
+							L = true;
+						} else if(((Blank)board[y][left]).bq > stepCount) {
+							((Blank)board[y][left]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[y][left]);
+						}
+					}
+					
+					// Need to look right
+					if(!R) {
+						if(board[y][right].val() != 0) {
+							R = true;
+						} else if(((Blank)board[y][right]).bq > stepCount) {
+							((Blank)board[y][right]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[y][right]);
+						}
+					}
+					
+					// Need to look up-right
+					if(!UR) {
+						if(board[up][right].val() != 0) {
+							UR = true;
+						} else if(((Blank)board[up][right]).bq > stepCount) {
+							((Blank)board[up][right]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[up][right]);
+						}
+					}
+					
+					// Need to look up-left
+					if(!UL) {
+						if(board[up][left].val() != 0) {
+							UL = true;
+						} else if(((Blank)board[up][left]).bq > stepCount) {
+							((Blank)board[up][left]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[up][left]);
+						}
+					}
+					
+					// Need to look down-left
+					if(!DL) {
+						if(board[down][left].val() != 0) {
+							DL = true;
+						} else if(((Blank)board[down][left]).bq > stepCount) {
+							((Blank)board[down][left]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[down][left]);
+						}
+					}
+					
+					// Need to look down-right
+					if(!DR) {
+						if(board[down][right].val() != 0) {
+							DR = true;
+						} else if(((Blank)board[down][right]).bq > stepCount) {
+							((Blank)board[down][right]).setQueenMoves(stepCount, player);
+							list.add((Blank) board[down][right]);
+						}
+					}
+				}
+				
+				stepSize++;
+			} while(!done);
+			
+			return list;
+		}
+		
+		// Generate a King-step map for every blank square on the board for each player.
+		private void generateKingMoves() {
+			
+		}
+		
+		// Returns the PIECE VALUE (0 => Blank, 1 => WQ, 2 => BQ, -1 => Arrow)
 		public int getSquare(int x, int y) {
 			if(x < 0 || x > 9 || y < 0 || y > 9) {
 				return 0;
@@ -255,6 +551,10 @@ public class Gameboard {
 		public BlackQueen[] getBlackQueens() {
 			return this.B_pieces;
 		}
+		
+        ///////////////////////////////////////////////////////////////////////////////////////////
+		// Printing methods for testing purposes only, remove these when code is ready to launch //
+		///////////////////////////////////////////////////////////////////////////////////////////
 		
 		// Print out the board
 		public String toString() {
@@ -284,6 +584,7 @@ public class Gameboard {
 		
 		}
 		
+		// Print out the empty neighbours map
 		public String emptySquaresCount() {
 			String b = "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
 			for(int i = 9; i >= 0; i--){
@@ -294,6 +595,59 @@ public class Gameboard {
 					int square = this.board[i][j].val();
 					if(square == 0) {
 						b += "_" + ((Blank)this.board[i][j]).emptyNeighbours + "_|";
+					} else if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} 
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+			
+			return b;
+		}
+		
+		// Print out the queen moves map
+		public String printQueenMovesCount() {
+			generateQueenMoves();
+			
+			String b = "White Queen Distance\n";
+			b += "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+					if(square == 0) {
+						b += "_" + ((Blank)this.board[i][j]).wq + "_|";
+					} else if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} 
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+
+			b += "Black Queen Distance\n";
+			b += "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+					if(square == 0) {
+						b += "_" + ((Blank)this.board[i][j]).bq + "_|";
 					} else if(square == 2) {
 						b += "_B_|";
 					} else if(square == 1) {

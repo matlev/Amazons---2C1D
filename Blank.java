@@ -33,6 +33,10 @@ public class Blank extends Gamepiece{
 			emptyNeighbours = (byte)nb;
 		}
 		
+		public String position() {
+			return super.position();
+		}
+		
 		public byte val() {
 			return val;
 		}
@@ -54,20 +58,20 @@ public class Blank extends Gamepiece{
 		}
 		
 		// The minimum number of "Queen" moves it takes for a player to reach this square
-		public void setQueenMoves(byte player, byte moves) {
+		public void setQueenMoves(int moves, int player) {
 			if(player == 1) {
-				this.wq = moves;
+				this.wq = (byte)moves;
 			} else {
-				this.bq = moves;
+				this.bq = (byte)moves;
 			}
 		}
 		
 		// The minimum number of "King" moves it takes for a player to reach this square
-		public void setKingMoves(byte player, byte moves) {
+		public void setKingMoves(int moves, int player) {
 			if(player == 1) {
-				this.wk = moves;
+				this.wk = (byte)moves;
 			} else {
-				this.bk = moves;
+				this.bk = (byte)moves;
 			}
 		}
 		
