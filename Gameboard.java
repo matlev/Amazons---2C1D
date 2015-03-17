@@ -297,7 +297,7 @@ public class Gameboard {
 			
 			// If our new list isn't empty, re-run the function with the new squares and an incremented step count
 			if(!newList.isEmpty()) {
-				generateQueenMoves(newList, stepCount++, player);
+				generateQueenMoves(newList, ++stepCount, player);
 			}
 		}
 		
@@ -520,7 +520,257 @@ public class Gameboard {
 		
 		// Generate a King-step map for every blank square on the board for each player.
 		private void generateKingMoves() {
+			// For each Queen, go through all of their possible steps, store each square as a 1, and save the squares to an array
+			ArrayList<Blank> list = new ArrayList<Blank>();
 			
+			// Make steps for each white queen on the board
+			for(WhiteQueen queen : W_pieces) {
+				String pos = queen.position();
+				int x = pos.charAt(0) - 65;
+				int y = Integer.parseInt(pos.substring(1)) - 1;
+				
+				// Append the Blank spaces generated from this queen's position to the new list
+				list.addAll(genKingMovesHelper(x, y, 1, WHITE));
+			}
+			
+			if(!list.isEmpty()) {
+				generateKingMoves(list, 2, WHITE);
+			}
+			
+			list.clear();
+			
+			// Make steps for each black queen on the board
+			for(BlackQueen queen : B_pieces) {
+				String pos = queen.position();
+				int x = pos.charAt(0) - 65;
+				int y = Integer.parseInt(pos.substring(1)) - 1;
+				
+				// Append the Blank spaces generated from this queen's position to the new list
+				list.addAll(genKingMovesHelper(x, y, 1, BLACK));
+			}
+			
+			if(!list.isEmpty()) {
+				generateKingMoves(list, 2, BLACK);
+			}
+		}
+		
+		private void generateKingMoves(ArrayList<Blank> list, int stepCount, int player) {
+			ArrayList<Blank> newList = new ArrayList<Blank>();
+			
+			for(Blank square : list) {
+				String pos = square.position();
+				int x = pos.charAt(0) - 65;
+				int y = Integer.parseInt(pos.substring(1)) - 1;
+				
+				newList.addAll(genKingMovesHelper(x, y, stepCount, player));
+			}
+			
+			// If our new list isn't empty, re-run the function with the new squares and an incremented step count
+			if(!newList.isEmpty()) {
+				generateKingMoves(newList, ++stepCount, player);
+			}
+		}
+		
+		private ArrayList<Blank> genKingMovesHelper(int x, int y, int stepCount, int player) {
+			ArrayList<Blank> list = new ArrayList<Blank>();
+			
+			// Convenience booleans for bounds checking
+			boolean U = false, D = false, L = false, R = false, UR = false, DL = false, UL = false, DR = false;
+			
+			// Only make a step of size one for measuring king moves
+			int up = y + 1;
+			int down = y - 1;
+			int right = x + 1;
+			int left = x - 1;
+			
+			// Check boundaries
+			if(up > 9) {
+				U = true;
+				UR = true;
+				UL = true;
+			}
+			
+			if(down < 0) {
+				D = true;
+				DL = true;
+				DR = true;
+			}
+			
+			if(left < 0) {
+				L = true;
+				UL = true;
+				DL = true;
+			}
+			
+			if(right > 9) {
+				R = true;
+				UR = true;
+				DR = true;
+			}
+			
+			if(player == WHITE) {
+				// Check up
+				if(!U) {
+					if(board[up][x].val() == 0) {
+						if(((Blank)board[up][x]).wk > stepCount) {
+							((Blank)board[up][x]).setKingMoves(stepCount, player);
+							list.add((Blank)board[up][x]);
+						}
+					}
+				}
+				
+				// Check down
+				if(!D) {
+					if(board[down][x].val() == 0) {
+						if(((Blank)board[down][x]).wk > stepCount) {
+							((Blank)board[down][x]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][x]);
+						}
+					}
+				}
+				
+				// Check left
+				if(!L) {
+					if(board[y][left].val() == 0) {
+						if(((Blank)board[y][left]).wk > stepCount) {
+							((Blank)board[y][left]).setKingMoves(stepCount, player);
+							list.add((Blank)board[y][left]);
+						}
+					}
+				}
+				
+				// Check right
+				if(!R) {
+					if(board[y][right].val() == 0) {
+						if(((Blank)board[y][right]).wk > stepCount) {
+							((Blank)board[y][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[y][right]);
+						}
+					}
+				}
+				
+				// Check up-right
+				if(!UR) {
+					if(board[up][right].val() == 0) {
+						if(((Blank)board[up][right]).wk > stepCount) {
+							((Blank)board[up][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[up][right]);
+						}
+					}
+				}
+				
+				// Check up-left
+				if(!UL) {
+					if(board[up][left].val() == 0) {
+						if(((Blank)board[up][left]).wk > stepCount) {
+							((Blank)board[up][left]).setKingMoves(stepCount, player);
+							list.add((Blank)board[up][left]);
+						}
+					}
+				}
+				
+				// Check down-left
+				if(!DL) {
+					if(board[down][left].val() == 0) {
+						if(((Blank)board[down][left]).wk > stepCount) {
+							((Blank)board[down][left]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][left]);
+						}
+					}
+				}
+				
+				// Check down-right
+				if(!DR) {
+					if(board[down][right].val() == 0) {
+						if(((Blank)board[down][right]).wk > stepCount) {
+							((Blank)board[down][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][right]);
+						}
+					}
+				}
+			} else {
+				// Check up
+				if(!U) {
+					if(board[up][x].val() == 0) {
+						if(((Blank)board[up][x]).bk > stepCount) {
+							((Blank)board[up][x]).setKingMoves(stepCount, player);
+							list.add((Blank)board[up][x]);
+						}
+					}
+				}
+				
+				// Check down
+				if(!D) {
+					if(board[down][x].val() == 0) {
+						if(((Blank)board[down][x]).bk > stepCount) {
+							((Blank)board[down][x]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][x]);
+						}
+					}
+				}
+				
+				// Check left
+				if(!L) {
+					if(board[y][left].val() == 0) {
+						if(((Blank)board[y][left]).bk > stepCount) {
+							((Blank)board[y][left]).setKingMoves(stepCount, player);
+							list.add((Blank)board[y][left]);
+						}
+					}
+				}
+				
+				// Check right
+				if(!R) {
+					if(board[y][right].val() == 0) {
+						if(((Blank)board[y][right]).bk > stepCount) {
+							((Blank)board[y][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[y][right]);
+						}
+					}
+				}
+				
+				// Check up-right
+				if(!UR) {
+					if(board[up][right].val() == 0) {
+						if(((Blank)board[up][right]).bk > stepCount) {
+							((Blank)board[up][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[up][right]);
+						}
+					}
+				}
+				
+				// Check up-left
+				if(!UL) {
+					if(board[up][left].val() == 0) {
+						if(((Blank)board[up][left]).bk > stepCount) {
+							((Blank)board[up][left]).setKingMoves(stepCount, player);
+							list.add((Blank)board[up][left]);
+						}
+					}
+				}
+				
+				// Check down-left
+				if(!DL) {
+					if(board[down][left].val() == 0) {
+						if(((Blank)board[down][left]).bk > stepCount) {
+							((Blank)board[down][left]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][left]);
+						}
+					}
+				}
+				
+				// Check down-right
+				if(!DR) {
+					if(board[down][right].val() == 0) {
+						if(((Blank)board[down][right]).bk > stepCount) {
+							((Blank)board[down][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][right]);
+						}
+					}
+				}
+			}
+			
+			return list;
 		}
 		
 		// Returns the PIECE VALUE (0 => Blank, 1 => WQ, 2 => BQ, -1 => Arrow)
@@ -648,6 +898,59 @@ public class Gameboard {
 					int square = this.board[i][j].val();
 					if(square == 0) {
 						b += "_" + ((Blank)this.board[i][j]).bq + "_|";
+					} else if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} 
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+			
+			return b;
+		}
+		
+		// Print out the queen moves map
+		public String printKingMovesCount() {
+			generateKingMoves();
+			
+			String b = "White King Distance\n";
+			b += "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+					if(square == 0) {
+						b += "_" + ((Blank)this.board[i][j]).wk + "_|";
+					} else if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} 
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+
+			b += "Black King Distance\n";
+			b += "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+					if(square == 0) {
+						b += "_" + ((Blank)this.board[i][j]).bk + "_|";
 					} else if(square == 2) {
 						b += "_B_|";
 					} else if(square == 1) {
