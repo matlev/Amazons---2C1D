@@ -773,6 +773,22 @@ public class Gameboard {
 			return list;
 		}
 		
+		// Calculate the Alpha score for every queen on the board
+		// Resets the move distances for the board, recalculates them and then calculates the alphas using the updated values
+		private void calculateAlphaScores() {
+			resetBlankMoveCounts();
+			generateQueenMoves();
+			generateKingMoves();
+			
+			for(WhiteQueen queen : W_pieces) {
+				queen.calculateAlpha(board);
+			}
+			
+			for(BlackQueen queen : B_pieces) {
+				queen.calculateAlpha(board);
+			}
+		}
+		
 		// Returns the PIECE VALUE (0 => Blank, 1 => WQ, 2 => BQ, -1 => Arrow)
 		public int getSquare(int x, int y) {
 			if(x < 0 || x > 9 || y < 0 || y > 9) {
@@ -958,6 +974,36 @@ public class Gameboard {
 					} else if(square == -1) {
 						b += "_X_|";
 					} 
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+			
+			return b;
+		}
+		
+		// Print out the alpha scores for each queen
+		public String printAlphaScores() {
+			calculateAlphaScores();
+			
+			String b = "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+
+					if(square == 2) {
+						b += "_" + ((BlackQueen)board[i][j]).getAlpha() + "_|";
+					} else if(square == 1) {
+						b += "_" + ((WhiteQueen)board[i][j]).getAlpha() + "_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} else {
+						b += "___|";
+					}
 				}
 				b += "\n";
 			}

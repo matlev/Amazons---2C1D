@@ -146,7 +146,7 @@ public class Blank extends Gamepiece{
 		
 		// Used to estimate how many moves are left until the filling stage of the game.  When
 		// each player has their own territories, the sum of all of squares will be 0.
-		public float getPartitionedScore() {
+		public float getOmegaScore() {
 			if(wq == 127 || bq == 127) {
 				return 0f;
 			} else {
