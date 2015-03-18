@@ -184,4 +184,5 @@ public class WhiteQueen extends Gamepiece{
 		
 		alpha = val;
 	}
+	
 }
