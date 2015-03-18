@@ -22,7 +22,11 @@ public class WhiteQueen extends Gamepiece{
 		alpha = -1;
 	}
 	
-	public String position() {
+	public String stringPosition() {
+		return super.stringPosition();
+	}
+	
+	public int[] position() {
 		return super.position();
 	}
 	

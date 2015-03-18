@@ -18,7 +18,11 @@ public class Arrow extends Gamepiece{
 		val = -1;
 	}
 	
-	public String position() {
+	public String stringPosition() {
+		return super.stringPosition();
+	}
+	
+	public int[] position() {
 		return super.position();
 	}
 	

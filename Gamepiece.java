@@ -23,10 +23,17 @@ public abstract class Gamepiece {
 		}
 		
 		// Returns the 1-index value of the piece's position in algebraic format (ex. a4; g3; b7; etc.)
-		public String position() {
+		public String stringPosition() {
 			char x_pos = (char)(x + 65);
 			
 			return x_pos + "" + (y + 1);
+		}
+		
+		public int[] position() {
+			int[] pos = new int[2];
+			pos[0] = x;
+			pos[1] = y;
+			return pos;
 		}
 		
 		public abstract byte val();

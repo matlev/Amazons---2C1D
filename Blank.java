@@ -1,7 +1,7 @@
 
 public class Blank extends Gamepiece{
 
-		private static final float KAPPA = 0.2f;
+		private static final float KAPPA = 0.12f;
 		public final byte val;
 		public byte wq, bq, wk, bk, emptyNeighbours;
 	
@@ -33,7 +33,11 @@ public class Blank extends Gamepiece{
 			emptyNeighbours = (byte)nb;
 		}
 		
-		public String position() {
+		public String stringPosition() {
+			return super.stringPosition();
+		}
+		
+		public int[] position() {
 			return super.position();
 		}
 		
@@ -83,7 +87,8 @@ public class Blank extends Gamepiece{
 		// Returns the local "Queen Move" score for this square.  This evaluation becomes more
 		// and more important during the main game and gives very good estimates of the expected 
 		// territory shortly before the filling phase.
-		public float getQueenDelta(byte player) {
+		// Returns the local "t1" score
+		public float getQueenDelta(int player) {
 			float delta = 0;
 			
 			// Neither player can reach this square
@@ -103,7 +108,7 @@ public class Blank extends Gamepiece{
 			
 			// Black and white can reach the square at the same time, score in favor of whose turn it is right now
 			if(Double.compare(wq, bq) == 0) {
-				delta = (float)(Math.pow(-1.0d, (double)player)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
+				delta = (float)(Math.pow(-1.0d, (double)player - 1)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
 			}
 			
 			return delta;
@@ -112,7 +117,8 @@ public class Blank extends Gamepiece{
 		// Returns the local "King Move" score for this square.  This evaluation rewards balanced 
 		// distributions of the player's amazons on the board or helps to hinder the opponent from 
 		// reaching such a distribution. This is most important at the beginning of the game.
-		public float getKingDelta(byte player) {
+		// Returns the local "t2" score
+		public float getKingDelta(int player) {
 			float delta = 0;
 			
 			if(wk == 127 && bk == 127) {
@@ -128,7 +134,7 @@ public class Blank extends Gamepiece{
 			}
 			
 			if(wk == bk) {
-				delta = (float)(Math.pow((-1.0d), (double)player)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
+				delta = (float)(Math.pow((-1.0d), (double)player - 1)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
 			}
 			
 			return delta;
@@ -136,16 +142,19 @@ public class Blank extends Gamepiece{
 		
 		// Evaluation function that rewards moves in earlier phases of the game that replace
 		// clear local disadvantages by small disadvantages and small advantages by clear advantages.
-		public float getLocalizedQueenScore() {
+		// Returns the localized queen score for this square
+		public float getC1Score() {
 			return (float)(Math.pow(2.0, ((double)-wq)) - Math.pow(2, ((double)-bq))); // 2^(-wq) - 2^(-bk)
 		}
 		
-		public float getLocalizedKingScore() {
-			return Math.min(1, (float)(Math.max(-1, ((int)bk - (int)wk))/6)); // min(1, max(-1, (bk - wk)/6))
+		// Returns the localized king score for this square
+		public float getC2Score() {
+			return Math.min(1, (float)(Math.max(-1.0, (double)((int)bk - (int)wk))/6)); // min(1, max(-1, (bk - wk)/6))
 		}
 		
 		// Used to estimate how many moves are left until the filling stage of the game.  When
 		// each player has their own territories, the sum of all of squares will be 0.
+		// Returns the local partitioning score for this square
 		public float getOmegaScore() {
 			if(wq == 127 || bq == 127) {
 				return 0f;

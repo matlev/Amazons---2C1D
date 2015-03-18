@@ -31,12 +31,12 @@ public class Gameboard {
 			board = new Gamepiece[][]{
 					{new Blank("a1", 3),new Blank("b1", 5),new Blank("c1", 4),W_pieces[0],new Blank("e1", 4),new Blank("f1", 4),W_pieces[1],new Blank("h1", 4),new Blank("i1", 5),new Blank("j1", 3)},
 					{new Blank("a2", 5),new Blank("b2"),new Blank("c2", 7),new Blank("d2", 7),new Blank("e2", 7),new Blank("f2", 7),new Blank("g2", 7),new Blank("h2", 7),new Blank("i2"),new Blank("j2", 5)},
-					{new Blank("a3", 4),new Blank("b3", 7),new Blank("c3"),new Blank("d3"),new Blank("e3"),new Blank("f3"),new Blank("g3"),new Blank("h3"),new Blank("i3", 7),new Blank("j3", 7)},
+					{new Blank("a3", 4),new Blank("b3", 7),new Blank("c3"),new Blank("d3"),new Blank("e3"),new Blank("f3"),new Blank("g3"),new Blank("h3"),new Blank("i3", 7),new Blank("j3", 4)},
 					{W_pieces[2],new Blank("b4", 7),new Blank("c4"),new Blank("d4"),new Blank("e4"),new Blank("f4"),new Blank("g4"),new Blank("h4"),new Blank("i4", 7),W_pieces[3]},
-					{new Blank("a5", 4),new Blank("b5", 7),new Blank("c5"),new Blank("d5"),new Blank("e5"),new Blank("f5"),new Blank("g5"),new Blank("h5"),new Blank("i5", 7),new Blank("j5", 7)},
-					{new Blank("a6", 4),new Blank("b6", 7),new Blank("c6"),new Blank("d6"),new Blank("e6"),new Blank("f6"),new Blank("g6"),new Blank("h6"),new Blank("i6", 7),new Blank("j6", 7)},
+					{new Blank("a5", 4),new Blank("b5", 7),new Blank("c5"),new Blank("d5"),new Blank("e5"),new Blank("f5"),new Blank("g5"),new Blank("h5"),new Blank("i5", 7),new Blank("j5", 4)},
+					{new Blank("a6", 4),new Blank("b6", 7),new Blank("c6"),new Blank("d6"),new Blank("e6"),new Blank("f6"),new Blank("g6"),new Blank("h6"),new Blank("i6", 7),new Blank("j6", 4)},
 					{B_pieces[0],new Blank("b7", 7),new Blank("c7"),new Blank("d7"),new Blank("e7"),new Blank("f7"),new Blank("g7"),new Blank("h7"),new Blank("i7", 7),B_pieces[1]},
-					{new Blank("a8", 4),new Blank("b8", 7),new Blank("c8"),new Blank("d8"),new Blank("e8"),new Blank("f8"),new Blank("g8"),new Blank("h8"),new Blank("i8", 7),new Blank("j8", 7)},
+					{new Blank("a8", 4),new Blank("b8", 7),new Blank("c8"),new Blank("d8"),new Blank("e8"),new Blank("f8"),new Blank("g8"),new Blank("h8"),new Blank("i8", 7),new Blank("j8", 4)},
 					{new Blank("a9", 5),new Blank("b9"),new Blank("c9", 7),new Blank("d9", 7),new Blank("e9", 7),new Blank("f9", 7),new Blank("g9", 7),new Blank("h9", 7),new Blank("i9"),new Blank("j9", 5)},
 					{new Blank("a10", 3),new Blank("b10", 5),new Blank("c10", 4),B_pieces[2],new Blank("e10", 4),new Blank("f10", 4),B_pieces[3],new Blank("h10", 4),new Blank("i10", 5),new Blank("j10", 3)}
 			};
@@ -52,9 +52,9 @@ public class Gameboard {
 		}
 		
 		public void moveAndShoot(String start, String finish, String arrow) {
-			String valid = movePiece(start, finish);
-			if(!valid.equals("")) {
-				shootArrow(valid, arrow);
+			String move = movePiece(start, finish);
+			if(move.equals("valid")) {
+				shootArrow(finish, arrow);
 			}
 		}
 		
@@ -93,17 +93,17 @@ public class Gameboard {
 				}
 				
 				// Update the array of pieces so we can keep track of their location easier
-				String pos = pieceToMove.position();
+				String pos = pieceToMove.stringPosition();
 				if(pieceToMove instanceof WhiteQueen) {
 					for(int i = 0; i < 4; i++) {
-						if(W_pieces[0].position().equalsIgnoreCase(pos)) {
-							W_pieces[0].move((byte)to_x, (byte)to_y);
+						if(W_pieces[i].stringPosition().equalsIgnoreCase(pos)) {
+							W_pieces[i].move((byte)to_x, (byte)to_y);
 						}
 					}
 				} else {
 					for(int i = 0; i < 4; i++) {
-						if(B_pieces[0].position().equalsIgnoreCase(pos)) {
-							B_pieces[0].move((byte)to_x, (byte)to_y);
+						if(B_pieces[i].stringPosition().equalsIgnoreCase(pos)) {
+							B_pieces[i].move((byte)to_x, (byte)to_y);
 						}
 					}
 				}
@@ -111,9 +111,9 @@ public class Gameboard {
 				this.board[p_y][p_x] = new Blank((byte)p_x, (byte)p_y, blanks);
 				this.board[to_y][to_x] = pieceToMove;
 				
-				return "" + (char)(to_x + 65) + "" + (to_y + 1);
+				return "valid";
 			} else {
-				return "";
+				return "invalid";
 			}
 			
 		}
@@ -164,10 +164,10 @@ public class Gameboard {
 				}
 				
 				numBlanks--;
-				return "" + (char)(to_x + 65) + "" + (to_y + 1);
+				return "valid";
 			}
 			
-			return "";
+			return "invalid";
 		}
 		
 		// Overloaded function for shooting an arrow to allow "natural" coordinates (index starts at 1)
@@ -265,9 +265,9 @@ public class Gameboard {
 			
 			// Make steps for each white queen on the board
 			for(WhiteQueen queen : W_pieces) {
-				String pos = queen.position();
-				int x = pos.charAt(0) - 65;
-				int y = Integer.parseInt(pos.substring(1)) - 1;
+				int[] pos = queen.position();
+				int x = pos[0];
+				int y = pos[1];
 				
 				// Append the Blank spaces generated from this queen's position to the new list
 				list.addAll(genQueenMovesHelper(x, y, 1, WHITE, updates, numBlanks));
@@ -282,9 +282,9 @@ public class Gameboard {
 			
 			// Make steps for each black queen on the board
 			for(BlackQueen queen : B_pieces) {
-				String pos = queen.position();
-				int x = pos.charAt(0) - 65;
-				int y = Integer.parseInt(pos.substring(1)) - 1;
+				int[] pos = queen.position();
+				int x = pos[0];
+				int y = pos[1];
 				
 				// Append the Blank spaces generated from this queen's position to the new list
 				list.addAll(genQueenMovesHelper(x, y, 1, BLACK, updates, numBlanks));
@@ -303,9 +303,9 @@ public class Gameboard {
 			ArrayList<Blank> newList = new ArrayList<Blank>();
 			
 			for(Blank square : list) {
-				String pos = square.position();
-				int x = pos.charAt(0) - 65;
-				int y = Integer.parseInt(pos.substring(1)) - 1;
+				int[] pos = square.position();
+				int x = pos[0];
+				int y = pos[1];
 				
 				newList.addAll(genQueenMovesHelper(x, y, stepCount, player, updates, numBlanks));
 				
@@ -569,9 +569,9 @@ public class Gameboard {
 			
 			// Make steps for each white queen on the board
 			for(WhiteQueen queen : W_pieces) {
-				String pos = queen.position();
-				int x = pos.charAt(0) - 65;
-				int y = Integer.parseInt(pos.substring(1)) - 1;
+				int[] pos = queen.position();
+				int x = pos[0];
+				int y = pos[1];
 				
 				// Append the Blank spaces generated from this queen's position to the new list
 				list.addAll(genKingMovesHelper(x, y, 1, WHITE, updates));
@@ -586,9 +586,9 @@ public class Gameboard {
 			
 			// Make steps for each black queen on the board
 			for(BlackQueen queen : B_pieces) {
-				String pos = queen.position();
-				int x = pos.charAt(0) - 65;
-				int y = Integer.parseInt(pos.substring(1)) - 1;
+				int[] pos = queen.position();
+				int x = pos[0];
+				int y = pos[1];
 				
 				// Append the Blank spaces generated from this queen's position to the new list
 				list.addAll(genKingMovesHelper(x, y, 1, BLACK, updates));
@@ -603,9 +603,9 @@ public class Gameboard {
 			ArrayList<Blank> newList = new ArrayList<Blank>();
 			
 			for(Blank square : list) {
-				String pos = square.position();
-				int x = pos.charAt(0) - 65;
-				int y = Integer.parseInt(pos.substring(1)) - 1;
+				int[] pos = square.position();
+				int x = pos[0];
+				int y = pos[1];
 				
 				newList.addAll(genKingMovesHelper(x, y, stepCount, player, updates));
 				
@@ -884,6 +884,61 @@ public class Gameboard {
 			return this.B_pieces;
 		}
 		
+		public float evaluate(int player) {
+			// Value variables set up
+			float val = 0f;
+			float t1 = 0, t2 = 0, c1 = 0, c2 = 0, m = 0, m2 = 0, m1 = 0, w = 0, T = 0;
+			
+			// Calculate alphas.  Method resets the distance counts and recalculates them first
+			calculateAlphaScores();
+			
+			// Calculate the global heuristic values for all blank squares
+			for(int j = 0; j < 10; j++) {
+				for(int i = 0; i < 10; i++) {
+					if(board[j][i] instanceof Blank) {
+						// Queen move score
+						t1 += ((Blank)board[j][i]).getQueenDelta(player);
+						
+						// King move score
+						t2 += ((Blank)board[j][i]).getKingDelta(player);
+						
+						// Local Queen move score
+						c1 += ((Blank)board[j][i]).getC1Score();
+						
+						// Local King move score
+						c2 += ((Blank)board[j][i]).getC2Score();
+						
+						// Measure of how partitioned the board is (goes to 0 as players get closer to having their own private territories)
+						w += ((Blank)board[j][i]).getOmegaScore();
+					}
+				}
+			}
+			
+			// The weighted positional advantage score
+			// f1(w)t1 + f2(w)c1 + f3(w)c2 + f4(w)t2 | 0 <= fi(w) <= 1; SUM(fi(w)) = 1
+			T = (float)Math.pow(1.2, (-w)*0.25)*t1 + (1/7)*(float)(1 - Math.pow(1.2, (-w)*0.25))*c1 + (2/7)*(float)(1 - Math.pow(1.2, (-w)*0.25))*c2 + (4/7)*(float)(1 - Math.pow(1.2, (-w)*0.25))*t2;
+			
+			// Calculate Black's mobility score
+			for(BlackQueen queen : B_pieces) {
+				m2 += 1.5*Math.sqrt(w)*Math.pow(Math.E, -queen.getAlpha()*0.2);
+			}
+			
+			// Calculate White's mobility score
+			for(WhiteQueen queen : W_pieces) {
+				m1 += 1.5*Math.sqrt(w)*Math.pow(Math.E, -queen.getAlpha()*0.2);
+			}
+			
+			// The mobility penalty score
+			m = m2 - m1;
+			
+			// The final heuristic value
+			val = T + m;
+			
+			System.out.println("t1: " + t1 + "\tc1: " + c1 + "\tc2: " + c2 + "\tt2: " + t2 + "\nOmega: " + w + "\tT: " + T + "\nBA: " + m2 + "\tWA: " + m1 + "\tM: " + m);
+			
+			return val;
+		}
+		
         ///////////////////////////////////////////////////////////////////////////////////////////
 		// Printing methods for testing purposes only, remove these when code is ready to launch //
 		///////////////////////////////////////////////////////////////////////////////////////////
@@ -1077,5 +1132,11 @@ public class Gameboard {
 			b += "    a   b   c   d   e   f   g   h   i   j\n";
 			
 			return b;
+		}
+		
+		public String printBoardEval() {
+			String response = "Eval if White to move: " + this.evaluate(WHITE);
+			response +="\nEval if Black to move: " + this.evaluate(BLACK) + "\n";
+			return response;
 		}
 }
