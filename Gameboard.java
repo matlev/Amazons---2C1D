@@ -117,6 +117,7 @@ public class Gameboard {
 				
 				// Increment the empty neighbours count for all empty squares around the starting position, 
 				// and count how many blanks there are.  Also decrement the empty squares around final position.
+				boolean movedOneSpace = false;
 				int blanks = 0;
 				for(int j = -1; j < 2; j++) {
 					for(int i = -1; i < 2; i++) {
@@ -130,6 +131,11 @@ public class Gameboard {
 						if(!(((to_y + j) < 0) || ((to_y + j) > 9) || ((to_x + i) < 0) || ((to_x + i) > 9))) {
 							if(this.board[to_y + j][to_x + i] instanceof Blank) {
 								((Blank) this.board[to_y + j][to_x + i]).decrementEmptyNeighbours();
+							}
+							
+							// A fix for blank squares not having a low enough empty neighbour score if the queen only moves one square away
+							if((to_y + j) == p_y && (to_x + i) == p_x) {
+								movedOneSpace = true;
 							}
 						}
 					}
@@ -151,8 +157,14 @@ public class Gameboard {
 					}
 				}
 				
+				// Update the board locations with the appropriate game pieces
 				this.board[p_y][p_x] = new Blank((byte)p_x, (byte)p_y, blanks);
 				this.board[to_y][to_x] = pieceToMove;
+				
+				// If we only moved one space away, decrement the origin square neighbour count by 1
+				if(movedOneSpace) {
+					((Blank)this.board[p_y][p_x]).decrementEmptyNeighbours();
+				}
 				
 				return true;
 			} else {

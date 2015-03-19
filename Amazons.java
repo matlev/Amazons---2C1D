@@ -24,25 +24,25 @@ public class Amazons {
 		
 		//B.doMove("d1", "d7", "d8");
 		B.doMove(move);
-		System.out.print(B.emptySquaresCount());
-		B.undoMove(move);
-		System.out.print(B.emptySquaresCount());
-		//B.doMove("a7", "c9", "c8");
-		//B.doMove("j4", "e4", "e8");
-	    //B.doMove("j7", "h9", "g8");
-		//B.doMove("g1", "f2", "f8");
-		//B.doMove("h9", "g9", "h8");
-		//B.doMove("e4", "i8", "h9");
-		//B.doMove("g10", "f10", "h10");
-		//B.doMove("a4", "a8", "c10");
+		//B.undoMove(move);
+		B.doMove("a7", "c9", "c8");
+		B.doMove("j4", "e4", "e8");
+	    B.doMove("j7", "h9", "g8");
+		B.doMove("g1", "f2", "f8");
+		B.doMove("h9", "g9", "h8");
+		B.doMove("e4", "i8", "h9");
+		B.doMove("g10", "f10", "h10");
+		B.doMove("a4", "a8", "c10");
 		//B.doMove("c9", "d9", "c9");
+		B.doMove("c9", "b8", "b9");
+		B.doMove("a8", "b7", "c7");
 		
 		//System.out.print(B.printQueenMovesCount());
 		//System.out.print(B.printKingMovesCount());
 		//System.out.print(B.emptySquaresCount());
 		//System.out.print(B.printAlphaScores());
-		//System.out.print(B.printBoardEval());
-		//System.out.print(B);
+		System.out.print(B.printBoardEval());
+		System.out.print(B);
 	}
 
 }
