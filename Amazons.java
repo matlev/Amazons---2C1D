@@ -8,25 +8,41 @@ public class Amazons {
 		
 		//System.out.print(B);
 		
-		//String newLoc = B.movePiece("d1", "d7");
-		//String ArrowLoc = B.shootArrow(newLoc, "F9");
-		B.moveAndShoot("d1", "d7", "d8");
-		B.moveAndShoot("a7", "c9", "c8");
-		B.moveAndShoot("j4", "e4", "e8");
-	    B.moveAndShoot("j7", "h9", "g8");
-		B.moveAndShoot("g1", "f2", "f8");
-		B.moveAndShoot("h9", "g9", "h8");
-		B.moveAndShoot("e4", "i8", "h9");
-		B.moveAndShoot("g10", "f10", "h10");
-		B.moveAndShoot("a4", "a8", "c10");
-		B.moveAndShoot("c9", "d9", "c9");
+		int move = 0;
+		move = move | 0x7;
+		move = move << 4;
+		move = move | 0x3;
+		move = move << 4;
+		move = move | 0x6;
+		move = move << 4;
+		move = move | 0x3;
+		move = move << 4;
+		move = move | 0x0;
+		move = move << 4;
+		move = move | 0x3;
+		
+		
+		//B.doMove("d1", "d7", "d8");
+		B.doMove(move);
+		System.out.print(B.emptySquaresCount());
+		B.undoMove(move);
+		System.out.print(B.emptySquaresCount());
+		//B.doMove("a7", "c9", "c8");
+		//B.doMove("j4", "e4", "e8");
+	    //B.doMove("j7", "h9", "g8");
+		//B.doMove("g1", "f2", "f8");
+		//B.doMove("h9", "g9", "h8");
+		//B.doMove("e4", "i8", "h9");
+		//B.doMove("g10", "f10", "h10");
+		//B.doMove("a4", "a8", "c10");
+		//B.doMove("c9", "d9", "c9");
 		
 		//System.out.print(B.printQueenMovesCount());
 		//System.out.print(B.printKingMovesCount());
 		//System.out.print(B.emptySquaresCount());
 		//System.out.print(B.printAlphaScores());
-		System.out.print(B.printBoardEval());
-		System.out.print(B);
+		//System.out.print(B.printBoardEval());
+		//System.out.print(B);
 	}
 
 }

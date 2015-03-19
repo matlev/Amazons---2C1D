@@ -51,25 +51,68 @@ public class Gameboard {
 			B_pieces = bqs;	
 		}
 		
-		public void moveAndShoot(String start, String finish, String arrow) {
-			String move = movePiece(start, finish);
-			if(move.equals("valid")) {
+		// Accepts the string coordinates for a queen's start and end position and where its arrow lands
+		public void doMove(String start, String finish, String arrow) {
+			boolean legal = movePiece(start, finish);
+			if(legal) {
 				shootArrow(finish, arrow);
 			}
+		}
+		
+		// Takes an encoded integer storing the positions of the move
+		public void doMove(int move) {
+			int[] coords = new int[6];
+			
+			// Move stores positions in the order of fromX, fromY, toX, toY, arrowX, arrowY
+			for(int i = 0; i < 6; i++) {
+				coords[i] = move & 0xf;
+				move = move >> 4;
+			}
+			
+			if(movePiece(coords[0], coords[1], coords[2], coords[3])) {
+				shootArrow(coords[2], coords[3], coords[4], coords[5]);
+			}
+		}
+		
+		// Undo the move in reverse order.  Increment the blank neighbours around the arrow, set the arrow as a blank,
+		// Move the queen from it's end position to it's start position and increment + decrement the empty neighbouring
+		// squares, respectively.
+		public void undoMove(int move) {
+			int[] coords = new int[6];
+			
+			// Move stores positions in the order of fromX, fromY, toX, toY, arrowX, arrowY
+			for(int i = 0; i < 6; i++) {
+				coords[i] = move & 0xf;
+				move = move >> 4;
+			}
+			
+			// Undo the arrow move neighbour updates
+			int blanks = 0;
+			for(int j = -1; j < 2; j++) {
+				for(int i = -1; i < 2; i++) {
+					if(!(((coords[5] + j) < 0) || ((coords[5] + j) > 9) || ((coords[4] + i) < 0) || ((coords[4] + i) > 9))) {
+						if(this.board[coords[5] + j][coords[4] + i] instanceof Blank) {
+							blanks++;
+							((Blank)this.board[coords[5] + j][coords[4] + i]).incrementEmptyNeighbours();
+						}
+					}
+				}
+			}
+			
+			// Set the arrow square to a blank square
+			this.board[coords[5]][coords[4]] = new Blank((byte)coords[5], (byte)coords[4], (byte)blanks);
+			
+			// Move the queen the opposite direction
+			movePiece(coords[2], coords[3], coords[0], coords[1]);
 		}
 		
 		// Accepts the x and y coordinates of the piece to move and where to move it, 
 		// and returns the new position.  Checks for a legal move (diagonal or orthogonal,
 		// with no objects obstructing the path)
-		public String movePiece(int p_x, int p_y, int to_x, int to_y) {
-			// Decremented to allow for more "natural" move input (coordinates start at 1 instead of 0)
-			p_x--;
-			p_y--;
-			to_x--;
-			to_y--;
-			String move = checkLegalMove(p_x, p_y, to_x, to_y);
+		public boolean movePiece(int p_x, int p_y, int to_x, int to_y) {
+			boolean legal = checkLegalMove(p_x, p_y, to_x, to_y);
 			
-			if(move.equals("valid")) {
+			if(legal) {
 				Gamepiece pieceToMove = this.board[p_y][p_x];
 				
 				// Increment the empty neighbours count for all empty squares around the starting position, 
@@ -111,45 +154,40 @@ public class Gameboard {
 				this.board[p_y][p_x] = new Blank((byte)p_x, (byte)p_y, blanks);
 				this.board[to_y][to_x] = pieceToMove;
 				
-				return "valid";
+				return true;
 			} else {
-				return "invalid";
+				return false;
 			}
 			
 		}
 		
 		// Overloaded method to handle a-j column names instead of #'s
-		public String movePiece(char p_x, byte p_y, char to_x, byte to_y) {
+		public boolean movePiece(char p_x, int p_y, char to_x, int to_y) {
 			// Convert letters to numbers (uppercase letters have a value from 65 - 90)
-			byte px = (byte)(p_x > 96 ? p_x - 96 : p_x - 64);
-			byte tox = (byte)(to_x > 96 ? to_x - 96 : to_x - 64);
+			int px = (p_x > 96 ? p_x - 97 : p_x - 65);
+			int tox = (to_x > 96 ? to_x - 97 : to_x - 65);
 			
-			return movePiece(px, p_y, tox, to_y);
+			return movePiece(px, --p_y, tox, --to_y);
 		}
 		
 		// Overloaded method to handle coordinate input (ex. a4 to d1)
-		public String movePiece(String from, String to) {
+		public boolean movePiece(String from, String to) {
 			char init = from.charAt(0);
 			char dest = to.charAt(0);
 			
-			byte p_x = (byte)((int)init > 96 ? (int)init - 96 : (int)init - 64);
-			byte p_y = (byte)Integer.parseInt(from.substring(1));
-			byte to_x = (byte)((int)dest > 96 ? (int)dest - 96 : (int)dest - 64);
-			byte to_y = (byte)Integer.parseInt(to.substring(1));
+			int p_x = ((int)init > 96 ? (int)init - 97 : (int)init - 65);
+			int p_y = Integer.parseInt(from.substring(1)) - 1;
+			int to_x = ((int)dest > 96 ? (int)dest - 97 : (int)dest - 65);
+			int to_y = Integer.parseInt(to.substring(1)) - 1;
 			
 			return movePiece(p_x, p_y, to_x, to_y);
 		}
 		
 		// Shoots an arrow to a square, blocking it off
-		public String shootArrow(int p_x, int p_y, int to_x, int to_y) {
-			// Decremented to allow for more "natural" move input (coordinates start at 1 instead of 0)
-			p_x--;
-			p_y--;
-			to_x--;
-			to_y--;
-			String move = checkLegalMove(p_x, p_y, to_x, to_y);
+		public boolean shootArrow(int p_x, int p_y, int to_x, int to_y) {
+			boolean legal = checkLegalMove(p_x, p_y, to_x, to_y);
 			
-			if(move.equals("valid")) {
+			if(legal) {
 				this.board[to_y][to_x] = new Arrow((byte)to_x, (byte)to_y);
 				
 				// Decrement the empty neighbours count for all empty spaces around the arrow.
@@ -164,82 +202,82 @@ public class Gameboard {
 				}
 				
 				numBlanks--;
-				return "valid";
+				return true;
 			}
 			
-			return "invalid";
+			return false;
 		}
 		
 		// Overloaded function for shooting an arrow to allow "natural" coordinates (index starts at 1)
-		public String shootArrow(String from, String to) {
+		public boolean shootArrow(String from, String to) {
 			char init = from.charAt(0);
 			char dest = to.charAt(0);
 			
-			byte p_x = (byte)(init > 96 ? init - 96 : init - 64);
-			byte p_y = (byte)Integer.parseInt(from.substring(1));
-			byte to_x = (byte)(dest > 96 ? dest - 96 : dest - 64);
-			byte to_y = (byte)Integer.parseInt(to.substring(1));
+			int p_x = (init > 96 ? init - 97 : init - 65);
+			int p_y = Integer.parseInt(from.substring(1)) - 1;
+			int to_x = (dest > 96 ? dest - 97 : dest - 65);
+			int to_y = Integer.parseInt(to.substring(1)) - 1;
 			
 			return shootArrow(p_x, p_y, to_x, to_y);
 		}
 		
 		// Checks to see if the initial and destination squares are valid and a valid path exists between them
-		private String checkLegalMove(int p_x, int p_y, int to_x, int to_y) {
+		private boolean checkLegalMove(int p_x, int p_y, int to_x, int to_y) {
 			// Check for in bounds
 			if(p_x < 0 || p_x > 9 || p_y < 0|| p_y > 9 || to_x < 0 || to_x > 9 || to_y < 0|| to_y > 9) {
-				return "";
+				return false;
 			}
 			
 			// Check for moving to same square
 			if(p_x == to_x && p_y == to_y) {
-				return "";
+				return false;
 			}
 			
 			// Check for inappropriate movement (must be lateral or diagonal)
 			int y_diff = Math.abs(to_y - p_y);
 			int x_diff = Math.abs(to_x - p_x);
 			if(!(p_x == to_x || p_y == to_y || x_diff == y_diff)) {
-				return "";
+				return false;
 			}
 			
 			// Check for objects in the path, including destination square
 			if(y_diff == 0) { // Only need to check left and right
 				for(int i = 1; i <= x_diff; i++) {
 					if(to_x > p_x) {
-						if(this.board[p_y][p_x + i].val() != 0) { return ""; }
-					} else if(this.board[p_y][p_x - i].val() != 0) { return ""; }
+						if(this.board[p_y][p_x + i].val() != 0) { return false; }
+					} else if(this.board[p_y][p_x - i].val() != 0) { return false; }
 				}
 			} else if(x_diff == 0) { // Check up and down
 				for(int i = 1; i <= y_diff; i++) {
 					if(to_y > p_y) {
-						if(this.board[p_y + i][p_x].val() != 0) { return ""; }
-					} else if(this.board[p_y - i][p_x].val() != 0) { return ""; }
+						if(this.board[p_y + i][p_x].val() != 0) { return false; }
+					} else if(this.board[p_y - i][p_x].val() != 0) { return false; }
 				}
 			} else { // Check diagonally
 				for(int i = 1; i <= y_diff; i++) {
 					// Moving northeast
 					if(to_y > p_y && to_x > p_x) {
-						if(this.board[p_y + i][p_x + i].val() != 0) { return ""; }
+						if(this.board[p_y + i][p_x + i].val() != 0) { return false; }
 					}
 					
 					// Moving southeast
 					if(to_y < p_y && to_x > p_x) {
-						if(this.board[p_y - i][p_x + i].val() != 0) { return ""; }
+						if(this.board[p_y - i][p_x + i].val() != 0) { return false; }
 					}
 					
 					// Moving northwest
 					if(to_y > p_y && to_x < p_x) {
-						if(this.board[p_y + i][p_x - i].val() != 0) { return ""; }
+						if(this.board[p_y + i][p_x - i].val() != 0) { return false; }
 					}
 					
 					// Moving southwest
 					if(to_y < p_y && to_x < p_x) {
-						if(this.board[p_y - i][p_x - i].val() != 0) { return ""; }
+						if(this.board[p_y - i][p_x - i].val() != 0) { return false; }
 					}
 				}
 			}
 			
-			return "valid";
+			return true;
 		}
 		
 		// Reset all the king and queen move counts for every blank square on the map.
