@@ -1,9 +1,11 @@
 import java.util.ArrayList;
+import java.util.Stack;
 
 
 public class Gameboard {
 		
 		private static final int WHITE = 1, BLACK = 2;
+		private Stack<Object[]> moveHistory = new Stack();
 		private int numBlanks;
 		private WhiteQueen[] W_pieces;
 		private BlackQueen[] B_pieces;
@@ -52,6 +54,7 @@ public class Gameboard {
 		}
 		
 		// Accepts the string coordinates for a queen's start and end position and where its arrow lands
+		// Does NOT store the move in the history.  Use this for testing ONLY
 		public void doMove(String start, String finish, String arrow) {
 			boolean legal = movePiece(start, finish);
 			if(legal) {
@@ -62,6 +65,7 @@ public class Gameboard {
 		// Takes an encoded integer storing the positions of the move
 		public void doMove(int move) {
 			int[] coords = new int[6];
+			int m = move;
 			
 			// Move stores positions in the order of fromX, fromY, toX, toY, arrowX, arrowY
 			for(int i = 0; i < 6; i++) {
@@ -70,40 +74,105 @@ public class Gameboard {
 			}
 			
 			if(movePiece(coords[0], coords[1], coords[2], coords[3])) {
-				shootArrow(coords[2], coords[3], coords[4], coords[5]);
+				// Cast as a Gamepiece incase the arrow shot is illegal
+				Gamepiece removed = null;
+				if(coords[4] < 10 && coords[4] >= 0 && coords[5] < 10 && coords[5] >= 0) {
+					removed = board[coords[5]][coords[4]];
+				}
+				
+				// If the shot is legal, store the move on the stack
+				if(shootArrow(coords[2], coords[3], coords[4], coords[5])) {
+					Object[] movePlayed = {m,(Blank)removed};
+					moveHistory.push(movePlayed);
+				}
 			}
 		}
 		
-		// Undo the move in reverse order.  Increment the blank neighbours around the arrow, set the arrow as a blank,
+		// Undo the last move in reverse order.  Increment the blank neighbours around the arrow, set the arrow as a blank,
 		// Move the queen from it's end position to it's start position and increment + decrement the empty neighbouring
 		// squares, respectively.
-		public void undoMove(int move) {
-			int[] coords = new int[6];
-			
-			// Move stores positions in the order of fromX, fromY, toX, toY, arrowX, arrowY
-			for(int i = 0; i < 6; i++) {
-				coords[i] = move & 0xf;
-				move = move >> 4;
-			}
-			
-			// Undo the arrow move neighbour updates
-			int blanks = 0;
-			for(int j = -1; j < 2; j++) {
-				for(int i = -1; i < 2; i++) {
-					if(!(((coords[5] + j) < 0) || ((coords[5] + j) > 9) || ((coords[4] + i) < 0) || ((coords[4] + i) > 9))) {
-						if(this.board[coords[5] + j][coords[4] + i] instanceof Blank) {
-							blanks++;
-							((Blank)this.board[coords[5] + j][coords[4] + i]).incrementEmptyNeighbours();
+		public void undoMove() {
+			if(!moveHistory.isEmpty()) {
+				// Grab the last move played form the top of the stack and extract the move and blank
+				Object[] lastMovePlayed = moveHistory.pop();
+				int move = (int)lastMovePlayed[0];
+				Blank removedBlank = (Blank)lastMovePlayed[1];
+				
+				int[] coords = new int[6];
+				
+				// Move stores positions in the order of fromX, fromY, toX, toY, arrowX, arrowY
+				for(int i = 0; i < 6; i++) {
+					coords[i] = move & 0xf;
+					move = move >> 4;
+				}
+				
+				// Undo the arrow move neighbour updates
+				for(int j = -1; j < 2; j++) {
+					for(int i = -1; i < 2; i++) {
+						if(!(((coords[5] + j) < 0) || ((coords[5] + j) > 9) || ((coords[4] + i) < 0) || ((coords[4] + i) > 9))) {
+							if(this.board[coords[5] + j][coords[4] + i] instanceof Blank) {
+								((Blank)this.board[coords[5] + j][coords[4] + i]).incrementEmptyNeighbours();
+							}
 						}
 					}
 				}
+				
+				// Set the arrow square to a blank square
+				this.board[coords[5]][coords[4]] = removedBlank;
+				
+				// Move the queen the opposite direction without the legal move check (because the
+				// queen couldn't have moved here in the first place if it was illegal)
+				Gamepiece pieceToMove = this.board[coords[3]][coords[2]];
+				
+				boolean movedOneSpace = false;
+				int blanks = 0;
+				for(int j = -1; j < 2; j++) {
+					for(int i = -1; i < 2; i++) {
+						if(!(((coords[3] + j) < 0) || ((coords[3] + j) > 9) || ((coords[2] + i) < 0) || ((coords[2] + i) > 9))) {
+							if(this.board[coords[3] + j][coords[2] + i] instanceof Blank) {
+								blanks++;
+								((Blank)this.board[coords[3] + j][coords[2] + i]).incrementEmptyNeighbours();
+							}
+						}
+						
+						if(!(((coords[1] + j) < 0) || ((coords[1] + j) > 9) || ((coords[0] + i) < 0) || ((coords[0] + i) > 9))) {
+							if(this.board[coords[1] + j][coords[0] + i] instanceof Blank) {
+								((Blank) this.board[coords[1] + j][coords[0] + i]).decrementEmptyNeighbours();
+							}
+							
+							// A fix for blank squares not having a low enough empty neighbour score if the queen only moves one square away
+							if((coords[1] + j) == coords[3] && (coords[0] + i) == coords[2]) {
+								movedOneSpace = true;
+							}
+						}
+					}
+				}
+				
+				// Update the array of pieces so we can keep track of their location easier
+				String pos = pieceToMove.stringPosition();
+				if(pieceToMove instanceof WhiteQueen) {
+					for(int i = 0; i < 4; i++) {
+						if(W_pieces[i].stringPosition().equalsIgnoreCase(pos)) {
+							W_pieces[i].move((byte)coords[0], (byte)coords[1]);
+						}
+					}
+				} else {
+					for(int i = 0; i < 4; i++) {
+						if(B_pieces[i].stringPosition().equalsIgnoreCase(pos)) {
+							B_pieces[i].move((byte)coords[0], (byte)coords[1]);
+						}
+					}
+				}
+				
+				// Update the board locations with the appropriate game pieces
+				this.board[coords[3]][coords[2]] = new Blank((byte)coords[2], (byte)coords[3], blanks);
+				this.board[coords[1]][coords[0]] = pieceToMove;
+				
+				// If we only moved one space away, decrement the origin square neighbour count by 1
+				if(movedOneSpace) {
+					((Blank)this.board[coords[3]][coords[2]]).decrementEmptyNeighbours();
+				}
 			}
-			
-			// Set the arrow square to a blank square
-			this.board[coords[5]][coords[4]] = new Blank((byte)coords[5], (byte)coords[4], (byte)blanks);
-			
-			// Move the queen the opposite direction
-			movePiece(coords[2], coords[3], coords[0], coords[1]);
 		}
 		
 		// Accepts the x and y coordinates of the piece to move and where to move it, 
@@ -709,6 +778,50 @@ public class Gameboard {
 			}
 			
 			if(player == WHITE) {
+				// Check up-right
+				if(!UR) {
+					if(board[up][right].val() == 0) {
+						if(((Blank)board[up][right]).wk > stepCount) {
+							((Blank)board[up][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[up][right]);
+							updates[0]++;
+						}
+					}
+				}
+				
+				// Check down-right
+				if(!DR) {
+					if(board[down][right].val() == 0) {
+						if(((Blank)board[down][right]).wk > stepCount) {
+							((Blank)board[down][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][right]);
+							updates[0]++;
+						}
+					}
+				}
+				
+				// Check up-left
+				if(!UL) {
+					if(board[up][left].val() == 0) {
+						if(((Blank)board[up][left]).wk > stepCount) {
+							((Blank)board[up][left]).setKingMoves(stepCount, player);
+							list.add((Blank)board[up][left]);
+							updates[0]++;
+						}
+					}
+				}
+				
+				// Check down-left
+				if(!DL) {
+					if(board[down][left].val() == 0) {
+						if(((Blank)board[down][left]).wk > stepCount) {
+							((Blank)board[down][left]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][left]);
+							updates[0]++;
+						}
+					}
+				}
+				
 				// Check up
 				if(!U) {
 					if(board[up][x].val() == 0) {
@@ -752,13 +865,24 @@ public class Gameboard {
 						}
 					}
 				}
-				
+			} else {
 				// Check up-right
 				if(!UR) {
 					if(board[up][right].val() == 0) {
-						if(((Blank)board[up][right]).wk > stepCount) {
+						if(((Blank)board[up][right]).bk > stepCount) {
 							((Blank)board[up][right]).setKingMoves(stepCount, player);
 							list.add((Blank)board[up][right]);
+							updates[0]++;
+						}
+					}
+				}
+				
+				// Check down-right
+				if(!DR) {
+					if(board[down][right].val() == 0) {
+						if(((Blank)board[down][right]).bk > stepCount) {
+							((Blank)board[down][right]).setKingMoves(stepCount, player);
+							list.add((Blank)board[down][right]);
 							updates[0]++;
 						}
 					}
@@ -767,7 +891,7 @@ public class Gameboard {
 				// Check up-left
 				if(!UL) {
 					if(board[up][left].val() == 0) {
-						if(((Blank)board[up][left]).wk > stepCount) {
+						if(((Blank)board[up][left]).bk > stepCount) {
 							((Blank)board[up][left]).setKingMoves(stepCount, player);
 							list.add((Blank)board[up][left]);
 							updates[0]++;
@@ -778,7 +902,7 @@ public class Gameboard {
 				// Check down-left
 				if(!DL) {
 					if(board[down][left].val() == 0) {
-						if(((Blank)board[down][left]).wk > stepCount) {
+						if(((Blank)board[down][left]).bk > stepCount) {
 							((Blank)board[down][left]).setKingMoves(stepCount, player);
 							list.add((Blank)board[down][left]);
 							updates[0]++;
@@ -786,17 +910,6 @@ public class Gameboard {
 					}
 				}
 				
-				// Check down-right
-				if(!DR) {
-					if(board[down][right].val() == 0) {
-						if(((Blank)board[down][right]).wk > stepCount) {
-							((Blank)board[down][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][right]);
-							updates[0]++;
-						}
-					}
-				}
-			} else {
 				// Check up
 				if(!U) {
 					if(board[up][x].val() == 0) {
@@ -836,50 +949,6 @@ public class Gameboard {
 						if(((Blank)board[y][right]).bk > stepCount) {
 							((Blank)board[y][right]).setKingMoves(stepCount, player);
 							list.add((Blank)board[y][right]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check up-right
-				if(!UR) {
-					if(board[up][right].val() == 0) {
-						if(((Blank)board[up][right]).bk > stepCount) {
-							((Blank)board[up][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[up][right]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check up-left
-				if(!UL) {
-					if(board[up][left].val() == 0) {
-						if(((Blank)board[up][left]).bk > stepCount) {
-							((Blank)board[up][left]).setKingMoves(stepCount, player);
-							list.add((Blank)board[up][left]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check down-left
-				if(!DL) {
-					if(board[down][left].val() == 0) {
-						if(((Blank)board[down][left]).bk > stepCount) {
-							((Blank)board[down][left]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][left]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check down-right
-				if(!DR) {
-					if(board[down][right].val() == 0) {
-						if(((Blank)board[down][right]).bk > stepCount) {
-							((Blank)board[down][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][right]);
 							updates[0]++;
 						}
 					}
