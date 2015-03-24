@@ -5,7 +5,7 @@ public class AI {
 	public static int leaves = 0;
 	private final int MAX_DEPTH = 2, WHITE = 1, BLACK = 2; // Tinker with depth
 	private int player;
-	private Node root;
+	public Node root;
 	Gameboard g_board;
 	Gamepiece[][] board;
 	
@@ -17,10 +17,16 @@ public class AI {
 		root = new Node();
 	}
 	
+	public float getScore() {
+		return root.getScore();
+	}
+	
 	// Runs a a search for the best move in the current position of the g_board.  Initially uses an alpha-beta minimax search
 	// and switches to a heuristic-influenced Monte Carlo simulation once the g_board is fully partitioned.  Returns a string
 	// array containing the queen move and the square the arrow is shot to.
 	public String[] search() {
+		
+		root.setScore(0);
 		
 		/*
 		 * Interrupt the think() thread so we can have the updated game tree
@@ -50,7 +56,14 @@ public class AI {
 				
 				// Play the move on the AI's g_board, set the root to this node and break out of the loop
 				g_board.doMove(n.move);
-				root = n;
+				
+				/* This is only helpful if we can search 3+ ply into a tree.  
+				 * root = n;
+				 */
+				
+				// Reset the root rather than set it to a branch since we can currently only achieve a depth of 2-ply
+				root.getChildren().clear();
+				
 				break;
 			}
 		}
@@ -2195,6 +2208,10 @@ public class AI {
 		return p_x + (p_y << 4) + (to_x << 8) + (to_y << 12) + (a_x << 16) + (a_y << 20);
 	}
 	
+	public void playMove(int move) {
+		g_board.doMove(move);
+	}
+	
 	// A method for the AI to play the opponent's move when we receive it
 	public void playMove(String from, String to, String arrow) {
 		g_board.doMove(from, to, arrow);
@@ -2209,26 +2226,29 @@ public class AI {
 		
 		public Node() {
 			parent = null;
-			children = new ArrayList<Node>();
+			children = null;
 			value = 0;
 			move = 0;
 		}
 		
 		public Node(int move) {
 			parent = null;
-			children = new ArrayList<Node>();
+			children = null;
 			value = 0;
 			this.move = move;
 		}
 		
 		public Node(int move, Node parent) {
 			this.parent = parent;
-			children = new ArrayList<Node>();
+			children = null;
 			value = 0;
 			this.move = move;
 		}
 		
 		public void addChild(Node n) {
+			if(this.children == null) {
+				this.children = new ArrayList<Node>();
+			}
 			this.children.add(n);
 		}
 		
@@ -2246,6 +2266,10 @@ public class AI {
 		
 		public void setScore(float val) {
 			value = val;
+		}
+		
+		public float getScore() {
+			return value;
 		}
 		
 		public void trickleScoreUp() {

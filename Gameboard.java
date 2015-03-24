@@ -55,7 +55,7 @@ public class Gameboard {
 		
 		// Accepts the string coordinates for a queen's start and end position and where its arrow lands
 		// Very slow and inefficient, use this for testing ONLY
-		public void doMove(String start, String finish, String arrow) {
+		public boolean doMove(String start, String finish, String arrow) {
 			int[] move = new int[6];
 			int m = 0;
 			
@@ -70,11 +70,11 @@ public class Gameboard {
 				m |= move[i] << (i * 4);
 			}
 			
-			doMove(m);
+			return doMove(m);
 		}
 		
 		// Takes an encoded integer storing the positions of the move
-		public void doMove(int move) {
+		public boolean doMove(int move) {
 			int[] coords = new int[6];
 			int m = move;
 			
@@ -85,7 +85,7 @@ public class Gameboard {
 			}
 			
 			if(movePiece(coords[0], coords[1], coords[2], coords[3])) {
-				// Cast as a Gamepiece incase the arrow shot is illegal
+				// Cast as a Gamepiece in case the arrow shot is illegal
 				Gamepiece removed = null;
 				if(coords[4] < 10 && coords[4] >= 0 && coords[5] < 10 && coords[5] >= 0) {
 					removed = board[coords[5]][coords[4]];
@@ -95,8 +95,14 @@ public class Gameboard {
 				if(shootArrow(coords[2], coords[3], coords[4], coords[5])) {
 					Object[] movePlayed = {m,(Blank)removed};
 					moveHistory.push(movePlayed);
+					
+					return true;
+				} else {
+					return false;
 				}
-			}
+			} else {
+				return false;
+			}	
 		}
 		
 		// Undo the last move in reverse order.  Increment the blank neighbours around the arrow, set the arrow as a blank,
@@ -183,6 +189,9 @@ public class Gameboard {
 				if(movedOneSpace) {
 					((Blank)this.board[coords[3]][coords[2]]).decrementEmptyNeighbours();
 				}
+				
+				// Increment number of blanks left on the board
+				numBlanks++;
 			}
 		}
 		
@@ -1065,6 +1074,7 @@ public class Gameboard {
 			val = T + m;
 			
 			//System.out.println("t1: " + t1 + "\tc1: " + c1 + "\tc2: " + c2 + "\tt2: " + t2 + "\nOmega: " + w + "\tT: " + T + "\nBA: " + m2 + "\tWA: " + m1 + "\tM: " + m);
+			//System.out.println("Score: " + val + "\n");
 			
 			return val;
 		}
@@ -1075,7 +1085,7 @@ public class Gameboard {
 		
 		// Print out the board
 		public String toString() {
-			String b = "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			String b = "\n   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
 			for(int i = 9; i >= 0; i--){
 				if(i < 9){b += (i + 1) + " |";}
 				else{b += (i + 1) + "|";}
@@ -1130,7 +1140,7 @@ public class Gameboard {
 		
 		// Print out the queen moves map
 		public String printQueenMovesCount() {
-			generateQueenMoves();
+			// generateQueenMoves();
 			
 			String b = "White Queen Distance\n";
 			b += "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
@@ -1183,7 +1193,7 @@ public class Gameboard {
 		
 		// Print out the queen moves map
 		public String printKingMovesCount() {
-			generateKingMoves();
+			//generateKingMoves();
 			
 			String b = "White King Distance\n";
 			b += "   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
@@ -1268,5 +1278,23 @@ public class Gameboard {
 			String response = "Eval if White to move: " + this.evaluate(WHITE);
 			response +="\nEval if Black to move: " + this.evaluate(BLACK) + "\n";
 			return response;
+		}
+		
+		// Print the move history (encoded format)
+		public String printMoveHistory() {
+			String history = "";
+			int player = 1;
+			
+			for(Object[] move : moveHistory) {
+				if(player == 1) {
+					history += move[0] + ", ";
+					player++;
+				} else {
+					history += move[0] + "\n";
+					player--;
+				}		
+			}
+			
+			return history;
 		}
 }
