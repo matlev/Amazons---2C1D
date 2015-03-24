@@ -54,12 +54,23 @@ public class Gameboard {
 		}
 		
 		// Accepts the string coordinates for a queen's start and end position and where its arrow lands
-		// Does NOT store the move in the history.  Use this for testing ONLY
+		// Very slow and inefficient, use this for testing ONLY
 		public void doMove(String start, String finish, String arrow) {
-			boolean legal = movePiece(start, finish);
-			if(legal) {
-				shootArrow(finish, arrow);
+			int[] move = new int[6];
+			int m = 0;
+			
+			move[5] = Integer.parseInt(arrow.substring(1)) - 1;
+			move[4] = (arrow.charAt(0) > 96 ? arrow.charAt(0) - 97 : arrow.charAt(0) - 65);
+			move[3] = Integer.parseInt(finish.substring(1)) - 1;
+			move[2] = (finish.charAt(0) > 96 ? finish.charAt(0) - 97 : finish.charAt(0) - 65);
+			move[1] = Integer.parseInt(start.substring(1)) - 1;
+			move[0] = (start.charAt(0) > 96 ? start.charAt(0) - 97 : start.charAt(0) - 65);
+			
+			for(int i = 0; i < 6; i++) {
+				m |= move[i] << (i * 4);
 			}
+			
+			doMove(m);
 		}
 		
 		// Takes an encoded integer storing the positions of the move
@@ -1053,7 +1064,7 @@ public class Gameboard {
 			// The final heuristic value
 			val = T + m;
 			
-			System.out.println("t1: " + t1 + "\tc1: " + c1 + "\tc2: " + c2 + "\tt2: " + t2 + "\nOmega: " + w + "\tT: " + T + "\nBA: " + m2 + "\tWA: " + m1 + "\tM: " + m);
+			//System.out.println("t1: " + t1 + "\tc1: " + c1 + "\tc2: " + c2 + "\tt2: " + t2 + "\nOmega: " + w + "\tT: " + T + "\nBA: " + m2 + "\tWA: " + m1 + "\tM: " + m);
 			
 			return val;
 		}
