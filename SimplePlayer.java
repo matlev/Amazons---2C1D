@@ -74,6 +74,9 @@ public class SimplePlayer implements GamePlayer {
 			onJoinRoom(xml);
 		}
 		else if (type.equals(GameMessage.ACTION_GAME_START)){
+			Gameboard ai_board = new Gameboard();
+			AI ai = null;
+
 			this.gameStarted = true;
 			
 			IXMLElement usrlist = xml.getFirstChildNamed("usrlist");
@@ -94,15 +97,13 @@ public class SimplePlayer implements GamePlayer {
 				String role = usr.getAttribute("role","W");
 				if(role.equalsIgnoreCase("W")){
 					isPlayerA = true;
-					AI ai = new AI(1);
+					ai = new AI(ai_board, 1);
 					moves = ai.search();
-					ai.playMove(moves[0].substring(0, 2),moves[0].substring(3, 4),moves[1]);
-					sendToServer(moves[0].substring(0, 2),moves[0].substring(3, 4),moves[1],roomID);
-					
+
 				}
 				else{
 					isPlayerA = false;
-					AI ai = new AI(2);
+					ai = new AI(ai_board, 2);
 				}
 			}
 			System.out.println("Game Start: " + msg.msg);
@@ -133,20 +134,21 @@ public class SimplePlayer implements GamePlayer {
 		
 		IXMLElement c1 = xml.getFirstChildNamed("queen");
 		String qmove = c1.getAttribute("move", "default");
-		String qfrom = qmove.substring(0, 2);
-		String qto = qmove.substring(3, 4);
+		
+		String[] queenMove = qmove.split("-");
 		
 		IXMLElement c2 = xml.getFirstChildNamed("arrow");
 		String amove = c2.getAttribute("move", "default");
 		
+		ai.playMove(queenMove[0], queenMove[1], amove);
 		moves = ai.search();
-		ai.playMove(moves[0].substring(0, 2),moves[0].substring(3, 4),moves[1]);
-		sendToServer(moves[0].substring(0, 2),moves[0].substring(3, 4),moves[1],roomID);
+		
+		sendToServer(moves[0], moves[1],roomID);
 	}
 
     // You may want to implement a method like this as a central point for sending messages 
 	// to the server.  
-	public void sendToServer(String qfrom, String qto, String arrow, int roomID){
+	public void sendToServer(String qMove, String arrow, int roomID){
 	  // before sending the message to the server, you need to (1) build the text of the message 
 	  // as a string,  (2) compile the message by calling 
 	  // the static method ServerMessage.compileGameMessage(msgType, roomID, actionMsg),
@@ -154,7 +156,7 @@ public class SimplePlayer implements GamePlayer {
 		
 	  // For message types and message format, see the GameMessage API and the project notes
 		
-		String actionmessage = "<action type ='move'><queen move='" + qfrom + "-" + qto + "'></queen>";
+		String actionmessage = "<action type ='move'><queen move='" + qMove + "'></queen>";
 		actionmessage = actionmessage + "<arrow move='" + arrow + "'></arrow></action>";
 		
 		System.out.println(actionmessage);
