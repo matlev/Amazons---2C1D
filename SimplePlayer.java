@@ -100,6 +100,7 @@ public class SimplePlayer implements GamePlayer {
 					ai = new AI(ai_board, 1);
 					moves = ai.search();
 
+					sendToServer(moves[0] ,moves[1] ,roomID);		
 				}
 				else{
 					isPlayerA = false;
