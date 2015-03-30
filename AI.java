@@ -1,11 +1,25 @@
 import java.util.ArrayList;
+import java.util.Random;
 
 public class AI {
+	// MCTS variables
+	private ArrayList<Node> firstMoves;
+	private long count = 0;
+	private final int[][] generateFirstMapList = new int[4][100];
+	private int[] shotMapGlob = new int[100];
+	private int[] mctsBoard = null;
+	private int simulations = 0;
+	private static final int GRID = 10;
+	private final static int[][] MATRIX = {{-1,-1},{-1,0},{-1,1},{0,1},{1,1},{1,0},{1,-1},{0,-1}};
 	
-	public static int leaves = 0;
-	private final int MAX_DEPTH = 2, WHITE = 1, BLACK = 2; // Tinker with depth
+	// Minimax alpha-beta variables
+	public int leaves = 0, max_depth = 2;// Tinker with depth
+	private static double alpha, beta;
+	
+	// Shared
+	private static final int ARROW = -1, BLANK = 0, WHITE = 1, BLACK = 2; 
 	private int player;
-	public Node root;
+	private Node root;
 	Gameboard g_board;
 	Gamepiece[][] board;
 	
@@ -17,6 +31,23 @@ public class AI {
 		root = new Node();
 	}
 	
+	public AI(Gameboard g_board, int player, boolean MCTS) {
+		if(MCTS) {
+			this.g_board = g_board;
+			this.player = player;
+			mctsBoard = createBoard(g_board.getBoard());
+			root = new Node();
+			firstMoves = new ArrayList<Node>();
+		} else {
+			new AI(g_board, player);
+		}
+	}
+	
+/*
+ * **************************
+ * MINIMAX ALPHA-BETA METHODS
+ * **************************	
+ */
 	public float getScore() {
 		return root.getScore();
 	}
@@ -26,7 +57,16 @@ public class AI {
 	// array containing the queen move and the square the arrow is shot to.
 	public String[] search() {
 		
+//		if(Double.compare(root.getScore(), 0) == 0) {
+//			alpha = Double.NEGATIVE_INFINITY;
+//			beta = Double.POSITIVE_INFINITY;
+//		} else {
+//			alpha = root.getScore() - 4;
+//			beta = root.getScore() + 4;
+//		}
+		
 		root.setScore(0);
+		leaves = 0;
 		
 		/*
 		 * Interrupt the think() thread so we can have the updated game tree
@@ -35,7 +75,7 @@ public class AI {
 		String[] move = new String[2];
 		
 		// Find the max or min value for the white or black player respectively
-		float val = alphaBeta(root, MAX_DEPTH, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, player);
+		float val = alphaBeta(root, max_depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, player);
 		
 		// Retrieve the move that has the min/max vlaue
 		ArrayList<Node> moves = root.getChildren();
@@ -68,6 +108,10 @@ public class AI {
 			}
 		}
 		
+		if(leaves <= 5000) {
+			max_depth++;
+		}
+		
 		/*
 		 * Start the think() thread
 		 */
@@ -80,7 +124,7 @@ public class AI {
 	// added and explored one at a time.  This way when A >= B and alpha-beta breaks out of the child node
 	// search, the program can just stop generating new legal moves and move back up the tree.  This saves
 	// memory and time.
-	private float alphaBeta(Node n, int depth, double alpha, double beta, int player) {
+	private float alphaBeta(Node n, int depth, double A, double B, int player) {
 		
 		// Only do a depth check for termination, as this implementation passes nodes that initially have empty
 		// successor moves (so we can't test for terminal node at this step)
@@ -94,20 +138,20 @@ public class AI {
 		}
 		
 		if(n.getChildren() == null || n.getChildren().isEmpty()) {
-			// Send the parent information to the move generator, which will recursively call alpha-beta with the child information
-			return generateLegalMoves(n, depth, alpha, beta, player);
+			// Send the parent information to the move generator, which will recursively call A-B with the child information
+			return generateLegalMoves(n, depth, A, B, player);
 		} else {
 			// If we have a pre-constructed tree already, we can run normal alphaBeta
 			ArrayList<Node> moves = n.getChildren();
 			
 			// White
-			if(player == 1) {
+			if(player == WHITE) {
 				double val = Double.NEGATIVE_INFINITY;
 				
 				for(Node child : moves) {
-					val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, (3 - player)));
-					alpha = Math.max(val, alpha);
-					if(alpha >= beta) {
+					val = Math.max(val, alphaBeta(child, depth - 1, A, B, (BLACK)));
+					A = Math.max(val, A);
+					if(A >= B) {
 						break;
 					}
 				}
@@ -118,9 +162,9 @@ public class AI {
 				double val = Double.POSITIVE_INFINITY;
 				
 				for(Node child : moves) {
-					val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, (3 - player)));
-					beta = Math.min(val, beta);
-					if(alpha >= beta) {
+					val = Math.min(val, alphaBeta(child, depth - 1, A, B, (WHITE)));
+					B = Math.min(val, B);
+					if(A >= B) {
 						break;
 					}
 				}
@@ -130,9 +174,9 @@ public class AI {
 		}	
 	}
 	
-	// Generates legal moves and runs alphaBeta on each one.  At any point, if alpha >= beta then 
+	// Generates legal moves and runs alphaBeta on each one.  At any point, if A >= B then 
 	// the method stops generating moves for the current parent and returns a value.
-	private float generateLegalMoves(Node n, int depth, double alpha, double beta, int player) {
+	private float generateLegalMoves(Node n, int depth, double A, double B, int player) {
 		double val = (player == 1 ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
 		
 		Gamepiece[] playerPieces = (player == 1 ? g_board.getWhiteQueens() : g_board.getBlackQueens());
@@ -165,23 +209,23 @@ public class AI {
 					
 					// Recursive call back to alphaBeta to search deeper
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					// Undo the move made at this level
 					g_board.undoMove();
 					
-					// If we've reached a point where alpha >= beta, break out of the entire move generation process
-					if(alpha >= beta) {
+					// If we've reached a point where A >= B, break out of the entire move generation process
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -197,21 +241,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -227,21 +271,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -257,21 +301,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -287,21 +331,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -317,21 +361,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -347,21 +391,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -377,26 +421,26 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 			}
 			
-			if(alpha >= beta) {
+			if(A >= B) {
 				break;
 			}
 			
@@ -421,23 +465,23 @@ public class AI {
 					
 					// Recursive call back to alphaBeta to search deeper
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					// Undo the move made at this level
 					g_board.undoMove();
 					
-					// If we've reached a point where alpha >= beta, break out of the entire move generation process
-					if(alpha >= beta) {
+					// If we've reached a point where A >= B, break out of the entire move generation process
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -453,21 +497,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -483,21 +527,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -513,21 +557,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -543,21 +587,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -573,21 +617,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -603,21 +647,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -633,26 +677,26 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 			}
 			
-			if(alpha >= beta) {
+			if(A >= B) {
 				break;
 			}
 			
@@ -677,23 +721,23 @@ public class AI {
 					
 					// Recursive call back to alphaBeta to search deeper
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					// Undo the move made at this level
 					g_board.undoMove();
 					
-					// If we've reached a point where alpha >= beta, break out of the entire move generation process
-					if(alpha >= beta) {
+					// If we've reached a point where A >= B, break out of the entire move generation process
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -709,21 +753,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -739,21 +783,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -769,21 +813,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -799,21 +843,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -829,21 +873,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -859,21 +903,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -889,26 +933,26 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 			}
 			
-			if(alpha >= beta) {
+			if(A >= B) {
 				break;
 			}
 			
@@ -933,23 +977,23 @@ public class AI {
 					
 					// Recursive call back to alphaBeta to search deeper
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					// Undo the move made at this level
 					g_board.undoMove();
 					
-					// If we've reached a point where alpha >= beta, break out of the entire move generation process
-					if(alpha >= beta) {
+					// If we've reached a point where A >= B, break out of the entire move generation process
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -965,21 +1009,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -995,21 +1039,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1025,21 +1069,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1055,21 +1099,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1085,21 +1129,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1115,21 +1159,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1145,26 +1189,26 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 			}
 			
-			if(alpha >= beta) {
+			if(A >= B) {
 				break;
 			}
 			
@@ -1189,23 +1233,23 @@ public class AI {
 					
 					// Recursive call back to alphaBeta to search deeper
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					// Undo the move made at this level
 					g_board.undoMove();
 					
-					// If we've reached a point where alpha >= beta, break out of the entire move generation process
-					if(alpha >= beta) {
+					// If we've reached a point where A >= B, break out of the entire move generation process
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1221,21 +1265,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1251,21 +1295,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1281,21 +1325,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1311,21 +1355,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1341,21 +1385,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1371,21 +1415,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1401,26 +1445,26 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 			}
 			
-			if(alpha >= beta) {
+			if(A >= B) {
 				break;
 			}
 			
@@ -1445,23 +1489,23 @@ public class AI {
 					
 					// Recursive call back to alphaBeta to search deeper
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					// Undo the move made at this level
 					g_board.undoMove();
 					
-					// If we've reached a point where alpha >= beta, break out of the entire move generation process
-					if(alpha >= beta) {
+					// If we've reached a point where A >= B, break out of the entire move generation process
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1477,21 +1521,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1507,21 +1551,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1537,21 +1581,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1567,21 +1611,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1597,21 +1641,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1627,21 +1671,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1657,26 +1701,26 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 			}
 			
-			if(alpha >= beta) {
+			if(A >= B) {
 				break;
 			}
 			
@@ -1701,23 +1745,23 @@ public class AI {
 					
 					// Recursive call back to alphaBeta to search deeper
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					// Undo the move made at this level
 					g_board.undoMove();
 					
-					// If we've reached a point where alpha >= beta, break out of the entire move generation process
-					if(alpha >= beta) {
+					// If we've reached a point where A >= B, break out of the entire move generation process
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1733,21 +1777,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1763,21 +1807,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1793,21 +1837,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1823,21 +1867,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1853,21 +1897,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1883,21 +1927,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1913,26 +1957,26 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 			}
 			
-			if(alpha >= beta) {
+			if(A >= B) {
 				break;
 			}
 			
@@ -1957,23 +2001,23 @@ public class AI {
 					
 					// Recursive call back to alphaBeta to search deeper
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					// Undo the move made at this level
 					g_board.undoMove();
 					
-					// If we've reached a point where alpha >= beta, break out of the entire move generation process
-					if(alpha >= beta) {
+					// If we've reached a point where A >= B, break out of the entire move generation process
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -1989,21 +2033,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -2019,21 +2063,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -2049,21 +2093,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -2079,21 +2123,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -2109,21 +2153,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -2139,21 +2183,21 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 				
@@ -2169,33 +2213,35 @@ public class AI {
 					g_board.doMove(move);
 					
 					if(player == 1) {
-						val = Math.max(val, alphaBeta(child, depth - 1, alpha, beta, 2));
-						alpha = Math.max(val, alpha);
+						val = Math.max(val, alphaBeta(child, depth - 1, A, B, 2));
+						A = Math.max(val, A);
 					} else {
-						val = Math.min(val, alphaBeta(child, depth - 1, alpha, beta, 1));
-						beta = Math.min(val, beta);
+						val = Math.min(val, alphaBeta(child, depth - 1, A, B, 1));
+						B = Math.min(val, B);
 					}
 					
 					g_board.undoMove();
 					
-					if(alpha >= beta) {
+					if(A >= B) {
 						break;
 					}
 				}
 				
-				if(alpha >= beta) {
+				if(A >= B) {
 					break;
 				}
 			}
 			
-			if(alpha >= beta) {
+			if(A >= B) {
 				break;
 			}
 		}
 		
 		// If we found no successor moves for this child then this player can't move and therefore loses.
-		if(n.getChildren().isEmpty()) {
-			val = (float)(player == 1 ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+		if(n.getChildren() == null || n.getChildren().isEmpty()) {
+//			val = (float)(player == 1 ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+//			leaves++;
+			val = alphaBeta(n, 0, A, B, player);
 		}
 		
 		n.setScore((float)val);
@@ -2217,24 +2263,215 @@ public class AI {
 		g_board.doMove(from, to, arrow);
 	}
 	
+/*
+ * *******************************
+ * MONTE CARLO TREE SEARCH METHODS
+ * *******************************
+ */
+
+	// Runs an UCT MCTS given a starting position.  First generates a list of moves and randomly selects
+	// one as its initial simulation point.  It then updates and maintains a "confidence" score for each
+	// node and selects the next node to simulate with the highest score. Returns the node with the highest
+	// win/loss ratio.
+	public int mcts() {
+		// Get first set of children
+		if(this.firstMoves.isEmpty()) {
+			generateFirstMap(root, mctsBoard, player);
+		}
+		
+		Node maxNode = null;
+		
+		if(simulations == 0) {
+			Random rand = new Random();
+			maxNode = (Node)firstMoves.get(rand.nextInt(firstMoves.size()));
+		} else {
+			float maxScore = 0;
+			
+			for(Node child : firstMoves) {
+				calculatePickMeScore(child);
+				
+				if(child.value > maxScore) {
+					maxScore = child.value;
+					maxNode = child;
+				}
+			}
+		}
+			
+		simulate(maxNode, player);
+		
+		return root.getChildren().size();
+	}
+	
+	// Dives down the tree to a terminating node, evaluates it as a win or a loss, and trickles back up.
+	private void simulate(Node maxNode, int player) {
+		mctsDoMove(maxNode.move, mctsBoard, player);
+		
+		generateFirstMap(maxNode, mctsBoard, 3 - player);
+		
+		if(maxNode.getChildren() != null && !maxNode.getChildren().isEmpty()) {
+			Random rand = new Random();
+			ArrayList<Node> children = maxNode.getChildren();
+			simulate(children.get(rand.nextInt(children.size())), 3 - player);
+		} else {
+			if(player == WHITE) {
+				maxNode.whiteWin++;
+			} else {
+				maxNode.blackWin++;
+			}
+		}
+		
+		
+		
+	}
+	
+	// Calculate the UCT value for a node.  We only call this function if simulations > 0,
+	// but we still need to check if the node's personal simulation count is 0
+	private void calculatePickMeScore(Node n) {
+		// Force a simulation count of 1 if this node has never been simulated
+		int numSims = (n.simulations == 0 ? 1 : n.simulations);
+		int winCount = (player == WHITE ? n.whiteWin : n.blackWin);
+		n.value = (float)(winCount/numSims + 1.4*Math.sqrt(Math.log(simulations)/numSims));
+	}
+	
+	// Generates all legal moves for the given board position and attaches them as children to the given node
+	private void generateFirstMap(Node parent, int[] board, int player){
+		int qCount = 0, i = -1;
+		try{
+			int[][] queenPos = new int[4][2];
+			for(i = 0; i < board.length; i++){
+				if(board[i] == player){
+					queenPos[qCount][0] = i%10; // X
+					queenPos[qCount][1] = i/10; // Y
+					genQueenMovesMapBRETT(generateFirstMapList[qCount++], board, i);
+					if(qCount > 3){break;}
+				}
+			}
+			int count = 0;
+			for(int[] movemap : generateFirstMapList){
+				board[queenPos[count][1]*GRID+queenPos[count][0]] = 0;
+				for(int x = 0; x <= 9; x++){
+					for(int y = 0; y <= 9; y++){
+						if(movemap[y*GRID+x] != 0){
+							genShotMap(shotMapGlob, board, x, y);
+							multiply_shotmap(parent,movemap[y*GRID+x],shotMapGlob);
+						}
+					}
+				}
+				board[queenPos[count][1]*GRID+queenPos[count][0]] = player;
+				count++;
+			}
+		} catch (Exception e){
+			System.out.println("q "+qCount+" i"+i);
+			//System.out.println(printMap(board));
+		}
+	}
+
+	// Creates a 10x10 map with the encoded queen+move values.
+	private void genQueenMovesMapBRETT(int[] list, int[] board, int queen) {
+		for(int i = 0; i < list.length; i++){
+			list[i] = 0;
+		}
+
+		int x = queen%10;
+		int y = queen/10;
+		int xOff, yOff;
+		for(int[] offset : MATRIX){
+			for(yOff = y+offset[0], xOff = x+offset[1]; (yOff > -1 && yOff < 10) && (xOff > -1 && xOff < 10); yOff += offset[0], xOff += offset[1]){
+				if(board[yOff*GRID+xOff] == 0){
+					list[yOff*GRID+xOff] = (((yOff&0xf) << 12) | ((xOff&0xf) << 8) | ((y&0xf) << 4) | x&0xf);
+				} else {
+					break;
+				}
+			}
+		}
+	}
+
+	// Create a 10x10 shot map with the encoded arrow values.
+	private void genShotMap(int[] shotMapGlob, int[] board, int xShot, int yShot){
+		int i, xOff, yOff;
+		for(i = 0; i < shotMapGlob.length; i++){
+			shotMapGlob[i] = -1;
+		}
+
+		shotMapGlob[yShot*GRID+xShot] = -99999;
+		for(int[] offset : MATRIX){
+			for(yOff = yShot+offset[0], xOff = xShot+offset[1]; (yOff > -1 && yOff < 10) && (xOff > -1 && xOff < 10); yOff += offset[0], xOff += offset[1]){
+				if(board[yOff*GRID+xOff] == 0){
+					shotMapGlob[yOff*GRID+xOff] = (((yOff&0xf) << 4) | xOff&0xf); // Rather than calling encode, doing it inline
+				} else {
+					break;
+				}
+			}
+		}
+	}
+
+	// Multiple the 10x10 maps together to get an array of ints for the move and shoots.
+	private void multiply_shotmap(Node parent, int valueMove, int[] shotmap){
+		//Account for shooting back at the starting position
+		for(int x = 0; x <= 9; x++){
+			for(int y = 0; y <= 9; y++){
+				if(shotmap[y*GRID+x] >= 0){ // need 0 because orign point is 0*65536 = 0
+					int move = (((shotmap[y*GRID+x]&0xffff) << 16) | valueMove);
+					parent.addChild(new Node(move,parent));
+					count++;
+				}
+			}
+		}
+	}
+
+	// Create a 1 dimensional int-array representation of the gameboard
+	public static int[] createBoard(Gamepiece[][] gBoard){
+		int[] ret = new int[100];
+		for(int x = 0; x < GRID; x++){
+			for(int y = 0; y < GRID; y++){
+				ret[y*GRID+x] = gBoard[y][x].val();
+			}
+		}
+
+		return ret;
+	}
+	
+	// Play a move on the int[] board
+	public static void mctsDoMove(int move, int[] board, int curPlayer){
+        int xq = move & 0xf;
+        int yq = (move & 0xf0) >> 4;
+        int xm = (move & 0xf00) >> 8;
+        int ym = (move & 0xf000) >> 12;
+        int xs = (move & 0xf0000) >> 16;
+        int ys = (move & 0xf00000) >> 20;
+        
+        board[yq*GRID+xq] = BLANK;
+        board[ym*GRID+xm] = curPlayer;
+        board[ys*GRID+xs] = ARROW;
+    }
+	
 	// The Node class storing the evaluation, move made and successor moves from the node's position
 	private class Node {
 		private Node parent;
 		private ArrayList<Node> children;
 		private float value;
+		private int whiteWin;
+		private int blackWin;
 		private int move;
+		private int simulations;
 		
 		public Node() {
 			parent = null;
 			children = null;
 			value = 0;
 			move = 0;
+			simulations = 0;
+			whiteWin = 0;
+			blackWin = 0;
 		}
 		
 		public Node(int move) {
 			parent = null;
 			children = null;
 			value = 0;
+			simulations = 0;
+			whiteWin = 0;
+			blackWin = 0;
 			this.move = move;
 		}
 		
@@ -2242,6 +2479,9 @@ public class AI {
 			this.parent = parent;
 			children = null;
 			value = 0;
+			simulations = 0;
+			whiteWin = 0;
+			blackWin = 0;
 			this.move = move;
 		}
 		
@@ -2272,8 +2512,20 @@ public class AI {
 			return value;
 		}
 		
-		public void trickleScoreUp() {
-			this.getParent().setScore(this.value);
+		public int getMove() {
+			return move;
+		}
+		
+		public void trickleWinUp(int player) {
+			if(player == WHITE) {
+				this.whiteWin++;
+			} else {
+				this.blackWin++;
+			}
+			
+			if(this.getParent() != null) {
+				this.getParent().trickleWinUp(player);
+			}
 		}
 	}
 }

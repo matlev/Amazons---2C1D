@@ -93,22 +93,22 @@ public class Blank extends Gamepiece{
 			
 			// Neither player can reach this square
 			if(wq == 127 && bq == 127) {
-				delta = 0f;
+				return delta = 0f;
 			}
 			
 			// White can reach the square first
 			if(wq < bq) {
-				delta = 1f;
+				return delta = 1f;
 			}
 			
 			// Black can reach the square first
 			if(wq > bq) {
-				delta = -1f;
+				return delta = -1f;
 			}
 			
 			// Black and white can reach the square at the same time, score in favor of whose turn it is right now
 			if(Double.compare(wq, bq) == 0) {
-				delta = (float)(Math.pow(-1.0d, (double)player - 1)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
+				return delta = (float)(Math.pow(-1.0d, (double)player - 1)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
 			}
 			
 			return delta;
@@ -122,19 +122,19 @@ public class Blank extends Gamepiece{
 			float delta = 0;
 			
 			if(wk == 127 && bk == 127) {
-				delta = 0f;
+				return delta = 0f;
 			}
 			
 			if(wk < bk) {
-				delta = 1f;
+				return delta = 1f;
 			}
 			
 			if(wk > bk) {
-				delta = -1f;
+				return delta = -1f;
 			}
 			
 			if(wk == bk) {
-				delta = (float)(Math.pow((-1.0d), (double)player - 1)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
+				return delta = (float)(Math.pow((-1.0d), (double)player - 1)*KAPPA); // (-1^player)(1/5) | player = {1: white, 2: black}
 			}
 			
 			return delta;
@@ -144,7 +144,7 @@ public class Blank extends Gamepiece{
 		// clear local disadvantages by small disadvantages and small advantages by clear advantages.
 		// Returns the localized queen score for this square
 		public float getC1Score() {
-			return (float)(Math.pow(2.0, ((double)-wq)) - Math.pow(2, ((double)-bq))); // 2^(-wq) - 2^(-bk)
+			return (float)(Math.pow(2.0, ((double)-wq)) - Math.pow(2, ((double)-bq))); // 2^(-wq) - 2^(-bq)
 		}
 		
 		// Returns the localized king score for this square

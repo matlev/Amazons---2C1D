@@ -4,18 +4,22 @@ import java.util.Stack;
 
 public class Gameboard {
 		
+		private static final double F_OMEGA_COEF = 1/(Math.E*45);
 		private static final int WHITE = 1, BLACK = 2;
 		private Stack<Object[]> moveHistory = new Stack();
-		private int numBlanks;
 		private WhiteQueen[] W_pieces;
 		private BlackQueen[] B_pieces;
 		private Gamepiece[][] board;
 		
+		// clockwise around position from top left;
+		private final static byte[][] MATRIX = {{-1,-1},{-1,0},{-1,1},{0,1},{1,1},{1,0},{1,-1},{0,-1}};
+		// check order to ensure maxiumum multiple fill rate.
+		private final static byte[] ORDER = {4,5,3,6,2,7,1,0};
+		// use with matrix to find common positions that need to be filled.
+		private final static byte[][] COMMON = {{1,7},{0,2,7,3},{1,3},{1,2,5,4},{3,5},{3,4,6,7},{5,7},{0,1,5,6}};
+		
 		// Set up the initial position of the pieces
-		public Gameboard() {
-			// Start with 92 blank spaces
-			numBlanks = 92;
-			
+		public Gameboard() {	
 			// White queens
 			W_pieces = new WhiteQueen[4];
 			W_pieces[0] = new WhiteQueen("d1");
@@ -43,14 +47,6 @@ public class Gameboard {
 					{new Blank("a10", 3),new Blank("b10", 5),new Blank("c10", 4),B_pieces[2],new Blank("e10", 4),new Blank("f10", 4),B_pieces[3],new Blank("h10", 4),new Blank("i10", 5),new Blank("j10", 3)}
 			};
 			
-		}
-		
-		// Allows the creation of a new board with a predefined position
-		public Gameboard(Gamepiece[][] board, WhiteQueen[] wqs, BlackQueen[] bqs) {
-			this.board = board;
-			
-			W_pieces = wqs;
-			B_pieces = bqs;	
 		}
 		
 		// Accepts the string coordinates for a queen's start and end position and where its arrow lands
@@ -190,8 +186,6 @@ public class Gameboard {
 					((Blank)this.board[coords[3]][coords[2]]).decrementEmptyNeighbours();
 				}
 				
-				// Increment number of blanks left on the board
-				numBlanks++;
 			}
 		}
 		
@@ -302,7 +296,6 @@ public class Gameboard {
 					}
 				}
 				
-				numBlanks--;
 				return true;
 			}
 			
@@ -409,11 +402,11 @@ public class Gameboard {
 				int y = pos[1];
 				
 				// Append the Blank spaces generated from this queen's position to the new list
-				list.addAll(genQueenMovesHelper(x, y, 1, WHITE, updates, numBlanks));
+				list.addAll(genQueenMoves(x, y, WHITE));
 			}
 			
 			if(!list.isEmpty()){
-				generateQueenMoves(list, 2, WHITE, updates, numBlanks);
+				genQueenMovesSecondPass(2, WHITE);
 			}
 			
 			list.clear();
@@ -426,550 +419,545 @@ public class Gameboard {
 				int y = pos[1];
 				
 				// Append the Blank spaces generated from this queen's position to the new list
-				list.addAll(genQueenMovesHelper(x, y, 1, BLACK, updates, numBlanks));
+				list.addAll(genQueenMoves(x, y, BLACK));
 			}
 				
 			if(!list.isEmpty()){
-				generateQueenMoves(list, 2, BLACK, updates, numBlanks);
+				genQueenMovesSecondPass(2, BLACK);
 			}
 		}
 		
-		// A helper function to assist in calculating the smallest distance to every square for a player.
-		// It accepts a list of Blanks to move from next, a step counter to determine how many steps we're
-		// taking at this point, and a flag for which player we're counting steps for.  This functions calls
-		// itself recursively for as long as list isn't blank.
-		private void generateQueenMoves(ArrayList<Blank> list, int stepCount, int player, int[] updates, int numBlanks) {
-			ArrayList<Blank> newList = new ArrayList<Blank>();
-			
-			for(Blank square : list) {
-				int[] pos = square.position();
-				int x = pos[0];
-				int y = pos[1];
-				
-				newList.addAll(genQueenMovesHelper(x, y, stepCount, player, updates, numBlanks));
-				
-				// Stop iterating through squares if we've updates all possible Blanks
-				if(updates[0] == numBlanks) {
-					newList.clear();
-					break;
+		/*
+		 * Generates a list of all squares that a queen can reach in 1 step
+		 */
+		private ArrayList<Blank> genQueenMoves(int x, int y, int player) {
+			ArrayList<Blank> list = new ArrayList<>();
+			int stepCount = 1;
+
+			if(player == WHITE) {
+				//up
+				for(int up = y+1;up <= 9 && board[up][x] instanceof Blank; up++){
+					if(((Blank)board[up][x]).wq > stepCount){
+						((Blank)board[up][x]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[up][x]);
+						//System.out.println("Adding up\t"+(Blank) board[up][x]);
+					}
+				}
+				//down
+				for(int down = y-1; down >= 0 && board[down][x] instanceof Blank; down--){
+					if(((Blank)board[down][x]).wq > stepCount){
+						((Blank)board[down][x]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[down][x]);
+						//System.out.println("Adding down\t"+(Blank) board[down][x]);
+					}
+				}
+				//right
+				for(int right = x+1; right <= 9 && board[y][right] instanceof Blank; right++){
+					if(((Blank)board[y][right]).wq > stepCount){
+						((Blank)board[y][right]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[y][right]);
+						//System.out.println("Adding right\t"+(Blank) board[y][right]);
+					}
+				}
+				//left
+				for(int left = x-1; left >= 0 && board[y][left] instanceof Blank; left--){
+					if(((Blank)board[y][left]).wq > stepCount){
+						((Blank)board[y][left]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[y][left]);
+						//System.out.println("Adding left\t"+(Blank) board[y][left]);
+					}
+				}
+				//upright
+				for(int up = y+1, right = x+1; up <= 9 && right <= 9 && board[up][right] instanceof Blank; up++, right++){
+					if(((Blank)board[up][right]).wq > stepCount){
+						((Blank)board[up][right]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[up][right]);
+						//System.out.println("Adding [up][right]\t"+(Blank) board[up][right]);
+					}
+				}
+				//upleft
+				for(int up = y+1, left = x-1; up <= 9 && left >= 0 && board[up][left] instanceof Blank; up++, left--){
+					if(((Blank)board[up][left]).wq > stepCount){
+						((Blank)board[up][left]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[up][left]);
+						//System.out.println("Adding [up][left]\t"+(Blank) board[up][left]);
+					}
+				}
+				//downright
+				for(int down = y-1, right = x+1; down >= 0 && right <= 9 && board[down][right] instanceof Blank; down--, right++){
+					if(((Blank)board[down][right]).wq > stepCount){
+						((Blank)board[down][right]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[down][right]);
+						//System.out.println("Adding [down][right]\t"+(Blank) board[down][right]);
+					}
+				}
+				//downleft
+				for(int down = y-1, left = x-1; down >= 0 && left >= 0 && board[down][left] instanceof Blank; down--, left--){
+					if(((Blank)board[down][left]).wq > stepCount){
+						((Blank)board[down][left]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[down][left]);
+						//System.out.println("Adding [down][left]\t"+(Blank) board[down][left]);
+					}
+				}
+			} else {
+				//up
+				for(int up = y+1; up <= 9 && board[up][x] instanceof Blank; up++){
+					if(((Blank)board[up][x]).bq > stepCount){
+						((Blank)board[up][x]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[up][x]);
+					}
+				}
+				//down
+				for(int down = y-1; down >= 0 && board[down][x] instanceof Blank; down--){
+					if(((Blank)board[down][x]).bq > stepCount){
+						((Blank)board[down][x]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[down][x]);
+					}
+				}
+				//right
+				for(int right = x+1; right <= 9 && board[y][right] instanceof Blank; right++){
+					if(((Blank)board[y][right]).bq > stepCount){
+						((Blank)board[y][right]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[y][right]);
+					}
+				}
+				//left
+				for(int left = x-1; left >= 0 && board[y][left] instanceof Blank; left--){
+					if(((Blank)board[y][left]).bq > stepCount){
+						((Blank)board[y][left]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[y][left]);
+					}
+				}
+				//upright
+				for(int up = y+1, right = x+1; up <= 9 && right <= 9 && board[up][right] instanceof Blank; up++, right++){
+					if(((Blank)board[up][right]).bq > stepCount){
+						((Blank)board[up][right]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[up][right]);
+					}
+				}
+				//upleft
+				for(int up = y+1, left = x-1; up <= 9 && left >= 0 && board[up][left] instanceof Blank; up++, left--){
+					if(((Blank)board[up][left]).bq > stepCount){
+						((Blank)board[up][left]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[up][left]);
+					}
+				}
+				//downright
+				for(int down = y-1, right = x+1; down >= 0 && right <= 9 && board[down][right] instanceof Blank; down--, right++){
+					if(((Blank)board[down][right]).bq > stepCount){
+						((Blank)board[down][right]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[down][right]);
+					}
+				}
+				//downleft
+				for(int down = y-1, left = x-1; down >= 0 && left >= 0 && board[down][left] instanceof Blank; down--, left--){
+					if(((Blank)board[down][left]).bq > stepCount){
+						((Blank)board[down][left]).setQueenMoves(stepCount, player);
+						list.add((Blank) board[down][left]);
+					}
 				}
 			}
-			
-			// If our new list isn't empty, re-run the function with the new squares and an incremented step count
-			if(!newList.isEmpty()) {
-				generateQueenMoves(newList, ++stepCount, player, updates, numBlanks);
-			}
-		}
-		
-		// The meat and potatoes of the queen move generator.  Handles out of bounds checking, only writing
-		// a value if it's smaller than the square's current distance, and stops checking a direction if we reach an obstacle.
-		private ArrayList<Blank> genQueenMovesHelper(int x, int y, int stepCount, int player, int[] updates, int numBlanks) {
-			ArrayList<Blank> list = new ArrayList<Blank>();
-			
-			// Set up some variables for the iteration
-			boolean done = false, U = false, D = false, L = false, R = false, UR = false, DL = false, UL = false, DR = false;
-			int stepSize = 1;
-			
-			do {
-				// Break out if we've updated all the blank squares already
-				if(updates[0] == numBlanks) {
-					break;
-				}
-				
-				// Check that every direction from this queen has been checked as far as possible
-				int up = y + stepSize;
-				int down = y - stepSize;
-				int right = x + stepSize;
-				int left = x - stepSize;
-				
-				if(up > 9) {
-					U = true;
-					UR = true;
-					UL = true;
-				}
-				
-				if(down < 0) {
-					D = true;
-					DL = true;
-					DR = true;
-				}
-				
-				if(left < 0) {
-					L = true;
-					UL = true;
-					DL = true;
-				}
-				
-				if(right > 9) {
-					R = true;
-					UR = true;
-					DR = true;
-				}
-				
-				if(U && D && L && R && UR && UL && DR && DL) {
-					done = true;
-				}
-				
-				if(player == WHITE) {
-					// Need to look up
-					if(!U) {
-						if(board[up][x].val() != 0) {
-							U = true;
-						} else {
-							if(((Blank)board[up][x]).wq > stepCount) {
-								// We don't want to add Blanks to the list that have already been added
-								((Blank)board[up][x]).setQueenMoves(stepCount, player);
-								list.add((Blank) board[up][x]);
-								updates[0]++;
-							}	
-						}
-					}
-					
-					// Need to look down
-					if(!D) {
-						if(board[down][x].val() != 0) {
-							D = true;
-						} else if(((Blank)board[down][x]).wq > stepCount) {
-							((Blank)board[down][x]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[down][x]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look left
-					if(!L) {
-						if(board[y][left].val() != 0) {
-							L = true;
-						} else if(((Blank)board[y][left]).wq > stepCount) {
-							((Blank)board[y][left]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[y][left]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look right
-					if(!R) {
-						if(board[y][right].val() != 0) {
-							R = true;
-						} else if(((Blank)board[y][right]).wq > stepCount) {
-							((Blank)board[y][right]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[y][right]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look up-right
-					if(!UR) {
-						if(board[up][right].val() != 0) {
-							UR = true;
-						} else if(((Blank)board[up][right]).wq > stepCount) {
-							((Blank)board[up][right]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[up][right]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look up-left
-					if(!UL) {
-						if(board[up][left].val() != 0) {
-							UL = true;
-						} else if(((Blank)board[up][left]).wq > stepCount) {
-							((Blank)board[up][left]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[up][left]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look down-left
-					if(!DL) {
-						if(board[down][left].val() != 0) {
-							DL = true;
-						} else if(((Blank)board[down][left]).wq > stepCount) {
-							((Blank)board[down][left]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[down][left]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look down-right
-					if(!DR) {
-						if(board[down][right].val() != 0) {
-							DR = true;
-						} else if(((Blank)board[down][right]).wq > stepCount) {
-							((Blank)board[down][right]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[down][right]);
-							updates[0]++;
-						}
-					}
-				} else {
-					// Need to look up
-					if(!U) {
-						if(board[up][x].val() != 0) {
-							U = true;
-						} else {
-							if(((Blank)board[up][x]).bq > stepCount) {
-								((Blank)board[up][x]).setQueenMoves(stepCount, player);
-								list.add((Blank) board[up][x]);
-								updates[0]++;
-							}	
-						}
-					}
-					
-					// Need to look down
-					if(!D) {
-						if(board[down][x].val() != 0) {
-							D = true;
-						} else if(((Blank)board[down][x]).bq > stepCount) {
-							((Blank)board[down][x]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[down][x]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look left
-					if(!L) {
-						if(board[y][left].val() != 0) {
-							L = true;
-						} else if(((Blank)board[y][left]).bq > stepCount) {
-							((Blank)board[y][left]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[y][left]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look right
-					if(!R) {
-						if(board[y][right].val() != 0) {
-							R = true;
-						} else if(((Blank)board[y][right]).bq > stepCount) {
-							((Blank)board[y][right]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[y][right]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look up-right
-					if(!UR) {
-						if(board[up][right].val() != 0) {
-							UR = true;
-						} else if(((Blank)board[up][right]).bq > stepCount) {
-							((Blank)board[up][right]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[up][right]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look up-left
-					if(!UL) {
-						if(board[up][left].val() != 0) {
-							UL = true;
-						} else if(((Blank)board[up][left]).bq > stepCount) {
-							((Blank)board[up][left]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[up][left]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look down-left
-					if(!DL) {
-						if(board[down][left].val() != 0) {
-							DL = true;
-						} else if(((Blank)board[down][left]).bq > stepCount) {
-							((Blank)board[down][left]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[down][left]);
-							updates[0]++;
-						}
-					}
-					
-					// Need to look down-right
-					if(!DR) {
-						if(board[down][right].val() != 0) {
-							DR = true;
-						} else if(((Blank)board[down][right]).bq > stepCount) {
-							((Blank)board[down][right]).setQueenMoves(stepCount, player);
-							list.add((Blank) board[down][right]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				stepSize++;
-			} while(!done);
-			
+
 			return list;
+		}
+
+		/*
+		 * For each square that hasn't been updated, try to reach a square that has a stepcount of stepcount - 1
+		 */
+		private void genQueenMovesSecondPass(int stepCount, int player) {
+			boolean gotOne = false;
+			boolean oneLeft = false;
+
+			for(int x = 0; x <= 9; x++){
+				for(int y = 0; y <= 9; y++){
+					if(board[y][x] instanceof Blank){
+						boolean success;
+						switch(player){
+						case 1:
+							if(((Blank)board[y][x]).wq == 127){
+								success = genQueenMovesSecondPassCheck(x, y, (Blank)board[y][x], stepCount, player);
+								if(success){
+									gotOne = true;
+								} else {
+									oneLeft = true;
+								}
+							}
+							break;
+						case 2:
+							if(((Blank)board[y][x]).bq == 127){
+								success = genQueenMovesSecondPassCheck(x, y, (Blank)board[y][x], stepCount, player);
+								if(success){
+									gotOne = true;
+								} else {
+									oneLeft = true;
+								}
+							}
+							break;
+						}
+					}
+				}
+			}
+
+			if(!gotOne && oneLeft){
+				//we gots a hole we can't get to
+				return;
+			}
+			if(oneLeft){
+				genQueenMovesSecondPass(++stepCount, player);
+			}
+		}
+
+		/*
+		 * Makes moves from Blank squares in queen directions and steps, attempting to find squares
+		 * that have been updated already.
+		 */
+		private boolean genQueenMovesSecondPassCheck(int x, int y, Blank piece, int stepCount, int player) {
+			if(player == WHITE) {
+				//up
+				for(int up = y+1;up <= 9; up++){
+					if(board[up][x] instanceof Blank){
+						if(((Blank)board[up][x]).wq == stepCount-1){
+							piece.wq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//down
+				for(int down = y-1;down >= 0 && down < y; down--){
+					if(board[down][x] instanceof Blank){
+						if(((Blank)board[down][x]).wq == stepCount-1){
+							piece.wq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//right
+				for(int right = x+1;right <= 9 && right > x; right++){
+					if(board[y][right] instanceof Blank){
+						if(((Blank)board[y][right]).wq == stepCount-1){
+							piece.wq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//left
+				for(int left = x-1;left >= 0 && left < x; left--){
+					if(board[y][left] instanceof Blank){
+						if(((Blank)board[y][left]).wq == stepCount-1){
+							piece.wq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//upright
+				for(int up = y+1, right = x+1; up <= 9 && up > y && right <= 9 && right > x; up++, right++){
+					if(board[up][right] instanceof Blank){
+						if(((Blank)board[up][right]).wq == stepCount-1){
+							piece.wq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//upleft
+				for(int up = y+1, left = x-1; up <= 9 && up > y && left >= 0 && left < x; up++, left--){
+					if(board[up][left] instanceof Blank){
+						if(((Blank)board[up][left]).wq == stepCount-1){
+							piece.wq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//downright
+				for(int down = y-1, right = x+1; down >= 0 && down < y && right <= 9 && right > x; down--, right++){
+					if(board[down][right] instanceof Blank){
+						if(((Blank)board[down][right]).wq == stepCount-1){
+							piece.wq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//downleft
+				for(int down = y-1, left = x-1; down >= 0 && down < y && left >= 0 && left < x; down--, left--){
+					if(board[down][left] instanceof Blank){
+						if(((Blank)board[down][left]).wq == stepCount-1){
+							piece.wq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+			} else {
+				//up
+				for(int up = y+1;up <= 9; up++){
+					if(board[up][x] instanceof Blank){
+						if(((Blank)board[up][x]).bq == stepCount-1){
+							piece.bq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//down
+				for(int down = y-1;down >= 0 && down < y; down--){
+					if(board[down][x] instanceof Blank){
+						if(((Blank)board[down][x]).bq == stepCount-1){
+							piece.bq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//right
+				for(int right = x+1;right <= 9 && right > x; right++){
+					if(board[y][right] instanceof Blank){
+						if(((Blank)board[y][right]).bq == stepCount-1){
+							piece.bq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//left
+				for(int left = x-1;left >= 0 && left < x; left--){
+					if(board[y][left] instanceof Blank){
+						if(((Blank)board[y][left]).bq == stepCount-1){
+							piece.bq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//upright
+				for(int up = y+1, right = x+1; up <= 9 && up > y && right <= 9 && right > x; up++, right++){
+					if(board[up][right] instanceof Blank){
+						if(((Blank)board[up][right]).bq == stepCount-1){
+							piece.bq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//upleft
+				for(int up = y+1, left = x-1; up <= 9 && up > y && left >= 0 && left < x; up++, left--){
+					if(board[up][left] instanceof Blank){
+						if(((Blank)board[up][left]).bq == stepCount-1){
+							piece.bq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//downright
+				for(int down = y-1, right = x+1; down >= 0 && down < y && right <= 9 && right > x; down--, right++){
+					if(board[down][right] instanceof Blank){
+						if(((Blank)board[down][right]).bq == stepCount-1){
+							piece.bq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+				//downleft
+				for(int down = y-1, left = x-1; down >= 0 && down < y && left >= 0 && left < x; down--, left--){
+					if(board[down][left] instanceof Blank){
+						if(((Blank)board[down][left]).bq == stepCount-1){
+							piece.bq = (byte)stepCount;
+							return true;
+						}
+					} else {
+						break;
+					}
+				}
+			}
+
+			return false;
 		}
 		
 		// Generate a King-step map for every blank square on the board for each player.
-		private void generateKingMoves() {
-			// For each Queen, go through all of their possible steps, store each square as a 1, and save the squares to an array
-			ArrayList<Blank> list = new ArrayList<Blank>();
-			int[] updates = new int[1];
-			updates[0] = 0;
+		public void generateKingMoves() {
 			
-			// Make steps for each white queen on the board
 			for(WhiteQueen queen : W_pieces) {
 				int[] pos = queen.position();
-				int x = pos[0];
-				int y = pos[1];
-				
-				// Append the Blank spaces generated from this queen's position to the new list
-				list.addAll(genKingMovesHelper(x, y, 1, WHITE, updates));
+				genKingMovesFirstRun((byte)pos[0],(byte)pos[1],WHITE);
 			}
 			
-			if(!list.isEmpty()) {
-				generateKingMoves(list, 2, WHITE, updates, numBlanks);
-			}
-			
-			list.clear();
-			updates[0] = 0;
-			
-			// Make steps for each black queen on the board
+			genKingMovesSecondPass(genLeft(WHITE), (byte)2, WHITE);
+
 			for(BlackQueen queen : B_pieces) {
 				int[] pos = queen.position();
-				int x = pos[0];
-				int y = pos[1];
-				
-				// Append the Blank spaces generated from this queen's position to the new list
-				list.addAll(genKingMovesHelper(x, y, 1, BLACK, updates));
+				genKingMovesFirstRun((byte)pos[0],(byte)pos[1],BLACK);
 			}
 			
-			if(!list.isEmpty()) {
-				generateKingMoves(list, 2, BLACK, updates, numBlanks);
-			}
+			genKingMovesSecondPass(genLeft(BLACK), (byte)2, BLACK);
 		}
-		
-		private void generateKingMoves(ArrayList<Blank> list, int stepCount, int player, int[] updates, int numBlanks) {
-			ArrayList<Blank> newList = new ArrayList<Blank>();
-			
-			for(Blank square : list) {
-				int[] pos = square.position();
-				int x = pos[0];
-				int y = pos[1];
-				
-				newList.addAll(genKingMovesHelper(x, y, stepCount, player, updates));
-				
-				if(updates[0] == numBlanks) {
-					newList.clear();
-					break;
-				}
-			}
-			
-			// If our new list isn't empty, re-run the function with the new squares and an incremented step count
-			if(!newList.isEmpty()) {
-				generateKingMoves(newList, ++stepCount, player, updates, numBlanks);
-			}
-		}
-		
-		private ArrayList<Blank> genKingMovesHelper(int x, int y, int stepCount, int player, int[] updates) {
-			ArrayList<Blank> list = new ArrayList<Blank>();
-			
-			// Convenience booleans for bounds checking
-			boolean U = false, D = false, L = false, R = false, UR = false, DL = false, UL = false, DR = false;
-			
-			// Only make a step of size one for measuring king moves
-			int up = y + 1;
-			int down = y - 1;
-			int right = x + 1;
-			int left = x - 1;
-			
-			// Check boundaries
-			if(up > 9) {
-				U = true;
-				UR = true;
-				UL = true;
-			}
-			
-			if(down < 0) {
-				D = true;
-				DL = true;
-				DR = true;
-			}
-			
-			if(left < 0) {
-				L = true;
-				UL = true;
-				DL = true;
-			}
-			
-			if(right > 9) {
-				R = true;
-				UR = true;
-				DR = true;
-			}
+
+		// Finds all the squares one step away from the king
+		private void genKingMovesFirstRun(byte x, byte y, int player){
+			byte xOff, yOff;
 			
 			if(player == WHITE) {
-				// Check up-right
-				if(!UR) {
-					if(board[up][right].val() == 0) {
-						if(((Blank)board[up][right]).wk > stepCount) {
-							((Blank)board[up][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[up][right]);
-							updates[0]++;
+				if(x > 0 && x < 9 && y > 0 && y < 9){
+					for(byte[] pos : MATRIX){
+						xOff = pos[1];
+						yOff = pos[0];
+						
+						if(this.board[y+yOff][x+xOff] instanceof Blank && ((Blank)this.board[y+yOff][x+xOff]).wk == 127) {
+							((Blank)this.board[y+yOff][x+xOff]).wk = 1;
 						}
 					}
-				}
-				
-				// Check down-right
-				if(!DR) {
-					if(board[down][right].val() == 0) {
-						if(((Blank)board[down][right]).wk > stepCount) {
-							((Blank)board[down][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][right]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check up-left
-				if(!UL) {
-					if(board[up][left].val() == 0) {
-						if(((Blank)board[up][left]).wk > stepCount) {
-							((Blank)board[up][left]).setKingMoves(stepCount, player);
-							list.add((Blank)board[up][left]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check down-left
-				if(!DL) {
-					if(board[down][left].val() == 0) {
-						if(((Blank)board[down][left]).wk > stepCount) {
-							((Blank)board[down][left]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][left]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check up
-				if(!U) {
-					if(board[up][x].val() == 0) {
-						if(((Blank)board[up][x]).wk > stepCount) {
-							((Blank)board[up][x]).setKingMoves(stepCount, player);
-							list.add((Blank)board[up][x]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check down
-				if(!D) {
-					if(board[down][x].val() == 0) {
-						if(((Blank)board[down][x]).wk > stepCount) {
-							((Blank)board[down][x]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][x]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check left
-				if(!L) {
-					if(board[y][left].val() == 0) {
-						if(((Blank)board[y][left]).wk > stepCount) {
-							((Blank)board[y][left]).setKingMoves(stepCount, player);
-							list.add((Blank)board[y][left]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check right
-				if(!R) {
-					if(board[y][right].val() == 0) {
-						if(((Blank)board[y][right]).wk > stepCount) {
-							((Blank)board[y][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[y][right]);
-							updates[0]++;
+				} else {
+					for(byte[] pos : MATRIX){
+						if(y+pos[0] >= 0 && y+pos[0] <= 9 && x+pos[1] >= 0 && x+pos[1] <= 9) {
+							if(this.board[y+pos[0]][x+pos[1]] instanceof Blank && ((Blank)this.board[y+pos[0]][x+pos[1]]).wk == 127) {
+								((Blank)this.board[y+pos[0]][x+pos[1]]).wk = 1;
+							}
 						}
 					}
 				}
 			} else {
-				// Check up-right
-				if(!UR) {
-					if(board[up][right].val() == 0) {
-						if(((Blank)board[up][right]).bk > stepCount) {
-							((Blank)board[up][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[up][right]);
-							updates[0]++;
+				if(x > 0 && x < 9 && y > 0 && y < 9){
+					for(byte[] pos : MATRIX){
+						if(this.board[y+pos[0]][x+pos[1]] instanceof Blank && ((Blank)this.board[y+pos[0]][x+pos[1]]).bk == 127) {
+							((Blank)this.board[y+pos[0]][x+pos[1]]).bk = 1;
+						}
+					}
+				} else {
+					for(byte[] pos : MATRIX){
+						if(y+pos[0] >= 0 && y+pos[0] <= 9 && x+pos[1] >= 0 && x+pos[1] <= 9) {
+							if(this.board[y+pos[0]][x+pos[1]] instanceof Blank && ((Blank)this.board[y+pos[0]][x+pos[1]]).bk == 127) {
+								((Blank)this.board[y+pos[0]][x+pos[1]]).bk = 1;
+							}
 						}
 					}
 				}
-				
-				// Check down-right
-				if(!DR) {
-					if(board[down][right].val() == 0) {
-						if(((Blank)board[down][right]).bk > stepCount) {
-							((Blank)board[down][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][right]);
-							updates[0]++;
+			}
+		}
+		
+		// Works backwards from all squares that haven't been updated.  On each pass, if we iterate though
+		// the squares and update a square with a distance if it finds a neighbouring square with a score already,
+		// always preferring to set its own score to it's smallest neighbour + 1.  If we have a pass where we haven't
+		// made and update or our list runs out, then we're done.
+		private void genKingMovesSecondPass(ArrayList<Blank> list, byte stepCount, int player){
+			boolean gotOne = false, oneLeft = false, success;
+			ArrayList<Blank> Left = new ArrayList();
+			
+			for(Blank entry : list){
+					success = genKingMovesHelperSecondCheck(entry, stepCount, player);
+					if(success){
+						gotOne = true;
+					} else {
+						Left.add(entry);
+						oneLeft = true;
+					}
+			}
+			
+			if(!gotOne && oneLeft){
+				// We have a hole we can't get to
+				return;
+			}
+			
+			if(oneLeft){
+				genKingMovesSecondPass(Left,++stepCount, player);
+			}
+		}
+
+		// Checks each passed square for a neighbour in a most-likely-to-find order.  
+		private boolean genKingMovesHelperSecondCheck(Blank piece, byte stepCount, int player){
+			byte x = piece.x;
+			byte y = piece.y;
+			
+			if(player == WHITE) {
+				if(x > 0 && x < 9 && y > 0 && y < 9){ //If not on an edge
+					for(byte pos : ORDER){
+						int xOff = MATRIX[pos][0];
+						int yOff = MATRIX[pos][1];
+						
+						if(this.board[y+yOff][x+xOff] instanceof Blank && ((Blank)this.board[y+yOff][x+xOff]).wk == stepCount-1) {
+							((Blank)this.board[y][x]).wk = stepCount;
+							return true;
+						}
+					}
+				} else {
+					for(byte pos : ORDER){
+						int xOff = MATRIX[pos][0];
+						int yOff = MATRIX[pos][1];
+						
+						if(y+yOff >= 0 && y+yOff <= 9 && x+xOff >= 0 && x+xOff <= 9){
+							if(this.board[y+yOff][x+xOff] instanceof Blank && ((Blank)this.board[y+yOff][x+xOff]).wk == stepCount-1) {
+								((Blank)this.board[y][x]).wk = stepCount;
+								return true;
+							}
 						}
 					}
 				}
-				
-				// Check up-left
-				if(!UL) {
-					if(board[up][left].val() == 0) {
-						if(((Blank)board[up][left]).bk > stepCount) {
-							((Blank)board[up][left]).setKingMoves(stepCount, player);
-							list.add((Blank)board[up][left]);
-							updates[0]++;
+			} else {
+				if(x > 0 && x < 9 && y > 0 && y < 9){ //If not on an edge
+					for(byte pos : ORDER){
+						int xOff = MATRIX[pos][0];
+						int yOff = MATRIX[pos][1];
+						
+						if(this.board[y+yOff][x+xOff] instanceof Blank && ((Blank)this.board[y+yOff][x+xOff]).bk == stepCount-1) {
+							((Blank)this.board[y][x]).bk = stepCount;
+							return true;
+						}
+					}
+				} else {
+					for(byte pos : ORDER){
+						int xOff = MATRIX[pos][0];
+						int yOff = MATRIX[pos][1];
+						
+						if(y+yOff >= 0 && y+yOff <= 9 && x+xOff >= 0 && x+xOff <= 9){
+							if(this.board[y+yOff][x+xOff] instanceof Blank && ((Blank)this.board[y+yOff][x+xOff]).bk == stepCount-1) {
+								((Blank)this.board[y][x]).bk = stepCount;
+								return true;
+							}
 						}
 					}
 				}
-				
-				// Check down-left
-				if(!DL) {
-					if(board[down][left].val() == 0) {
-						if(((Blank)board[down][left]).bk > stepCount) {
-							((Blank)board[down][left]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][left]);
-							updates[0]++;
+			}
+			
+			return false;
+		}
+		
+		// A function to find and store all the squares that haven't had their king distance calculated yet
+		private ArrayList<Blank> genLeft(int player){
+			ArrayList<Blank> list = new ArrayList();
+			
+			if(player == WHITE){
+				for(int x = 0; x <= 9; x++){
+					for(int y = 0; y <= 9; y++){
+						if(board[y][x] instanceof Blank && ((Blank)board[y][x]).wk == 127){
+							list.add((Blank)board[y][x]);
 						}
 					}
 				}
-				
-				// Check up
-				if(!U) {
-					if(board[up][x].val() == 0) {
-						if(((Blank)board[up][x]).bk > stepCount) {
-							((Blank)board[up][x]).setKingMoves(stepCount, player);
-							list.add((Blank)board[up][x]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check down
-				if(!D) {
-					if(board[down][x].val() == 0) {
-						if(((Blank)board[down][x]).bk > stepCount) {
-							((Blank)board[down][x]).setKingMoves(stepCount, player);
-							list.add((Blank)board[down][x]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check left
-				if(!L) {
-					if(board[y][left].val() == 0) {
-						if(((Blank)board[y][left]).bk > stepCount) {
-							((Blank)board[y][left]).setKingMoves(stepCount, player);
-							list.add((Blank)board[y][left]);
-							updates[0]++;
-						}
-					}
-				}
-				
-				// Check right
-				if(!R) {
-					if(board[y][right].val() == 0) {
-						if(((Blank)board[y][right]).bk > stepCount) {
-							((Blank)board[y][right]).setKingMoves(stepCount, player);
-							list.add((Blank)board[y][right]);
-							updates[0]++;
+			} else {
+				for(int x = 0; x <= 9; x++){
+					for(int y = 0; y <= 9; y++){
+						if(board[y][x] instanceof Blank && ((Blank)board[y][x]).bk == 127){
+							list.add((Blank)board[y][x]);
 						}
 					}
 				}
@@ -995,6 +983,8 @@ public class Gameboard {
 		}
 		
 		// Returns the PIECE VALUE (0 => Blank, 1 => WQ, 2 => BQ, -1 => Arrow)
+		
+		// Returns the PIECE VALUE (0 => Blank, 1 => WQ, 2 => BQ, -1 => Arrow)
 		public int getSquare(int x, int y) {
 			if(x < 0 || x > 9 || y < 0 || y > 9) {
 				return 0;
@@ -1002,6 +992,7 @@ public class Gameboard {
 				return this.board[y][x].val();
 			}
 		}
+		
 		
 		public int getSquare(String c) {
 			int x = c.charAt(0);
@@ -1011,17 +1002,22 @@ public class Gameboard {
 		}
 		
 		// Get the board instance
+		
+		// Get the board instance
 		public Gamepiece[][] getBoard() {
 			return this.board;
 		}
+		
 		
 		public WhiteQueen[] getWhiteQueens() {
 			return this.W_pieces;
 		}
 		
+		
 		public BlackQueen[] getBlackQueens() {
 			return this.B_pieces;
 		}
+		
 		
 		public float evaluate(int player) {
 			// Value variables set up
@@ -1053,33 +1049,58 @@ public class Gameboard {
 				}
 			}
 			
-			// The weighted positional advantage score
-			// f1(w)t1 + f2(w)c1 + f3(w)c2 + f4(w)t2 | 0 <= fi(w) <= 1; SUM(fi(w)) = 1
-			T = (float)Math.pow(1.2, (-w)*0.25)*t1 + (1/7)*(float)(1 - Math.pow(1.2, (-w)*0.25))*c1 + (2/7)*(float)(1 - Math.pow(1.2, (-w)*0.25))*c2 + (4/7)*(float)(1 - Math.pow(1.2, (-w)*0.25))*t2;
-			
-			// Calculate Black's mobility score
-			for(BlackQueen queen : B_pieces) {
-				m2 += 1.5*Math.sqrt(w)*Math.pow(Math.E, -queen.getAlpha()*0.2);
+			// If w == 0, then t2, t3 and t4 all return 0, so t1 is the only non-zero value
+			if(Double.compare(w, 0) == 0) {
+				val = t1;
+			} else {
+				// The weighted positional advantage score
+				// f1(w)t1 + f2(w)c1 + f3(w)c2 + f4(w)t2 | 0 <= fi(w) <= 1; SUM(fi(w)) = 1
+				T = (float)Math.pow(2, (-w)*F_OMEGA_COEF)*t1 + 0.18f*(float)(1 - Math.pow(2, (-w)*F_OMEGA_COEF))*c1 + 0.22f*(float)(1 - Math.pow(2, (-w)*F_OMEGA_COEF))*c2 + 0.6f*(float)(1 - Math.pow(2, (-w)*F_OMEGA_COEF))*t2;
+				
+				// Calculate Black's mobility score
+				for(BlackQueen queen : B_pieces) {
+					m2 += 1.5*Math.sqrt(w)*Math.pow(Math.E, -queen.getAlpha()*0.2);
+				}
+				
+				// Calculate White's mobility score
+				for(WhiteQueen queen : W_pieces) {
+					m1 += 1.5*Math.sqrt(w)*Math.pow(Math.E, -queen.getAlpha()*0.2);
+				}
+				
+				// The mobility penalty score
+				m = m2 - m1;
+				
+				// The final heuristic value
+				val = T + m;
 			}
-			
-			// Calculate White's mobility score
-			for(WhiteQueen queen : W_pieces) {
-				m1 += 1.5*Math.sqrt(w)*Math.pow(Math.E, -queen.getAlpha()*0.2);
-			}
-			
-			// The mobility penalty score
-			m = m2 - m1;
-			
-			// The final heuristic value
-			val = T + m;
 			
 			//System.out.println("t1: " + t1 + "\tc1: " + c1 + "\tc2: " + c2 + "\tt2: " + t2 + "\nOmega: " + w + "\tT: " + T + "\nBA: " + m2 + "\tWA: " + m1 + "\tM: " + m);
 			//System.out.println("Score: " + val + "\n");
 			
 			return val;
 		}
-		
-        ///////////////////////////////////////////////////////////////////////////////////////////
+
+		// A check for the Monte Carlo Tree Search algorithm to see if we're at the filling phase of the game or not.
+		// Returns the score if we're fully partitioned, 0 otherwise.
+		public float mctsEval(int player) {
+			float w = 0, t1 = 0;
+			
+			resetBlankMoveCounts();
+			generateQueenMoves();
+			
+			for(int j = 0; j < 10; j++) {
+				for(int i = 0; i < 10; i++) {
+					if(board[j][i] instanceof Blank) {
+						w += ((Blank)board[j][i]).getOmegaScore();
+						t1 += ((Blank)board[j][i]).getQueenDelta(player);
+					}
+				}
+			}
+			
+			return (Float.compare(w, 0) == 0 ? 0 : t1);
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////
 		// Printing methods for testing purposes only, remove these when code is ready to launch //
 		///////////////////////////////////////////////////////////////////////////////////////////
 		
@@ -1287,14 +1308,130 @@ public class Gameboard {
 			
 			for(Object[] move : moveHistory) {
 				if(player == 1) {
-					history += move[0] + ", ";
+					history += "{" + move[0];
 					player++;
 				} else {
-					history += move[0] + "\n";
+					history += ", " + move[0] + "},\n";
 					player--;
 				}		
 			}
 			
 			return history;
+		}
+		
+		// Print what the Q-Delta scores for each square would be depending on whose turn it is
+		public String printQueenDelta() {
+			this.resetBlankMoveCounts();
+			this.generateQueenMoves();
+			
+			String b = "\nQ-Deltas if white to move";
+			
+			b += "\n   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+
+					if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} else {
+						b += "_" + ((Blank)board[i][j]).getQueenDelta(1) + "_|";
+					}
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+			
+			b += "\nQ-Deltas if black to move";
+			
+			b += "\n   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+
+					if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} else {
+						b += "_" + ((Blank)board[i][j]).getQueenDelta(2) + "_|";
+					}
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+			
+			return b;
+		}
+		
+		// Print what the K-Delta scores for each square would be depending on whose turn it is
+		public String printKingDelta() {
+			this.resetBlankMoveCounts();
+			this.generateKingMoves();
+			
+			String b = "\nK-Deltas if white to move";
+			
+			b += "\n   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+
+					if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} else {
+						b += "_" + ((Blank)board[i][j]).getKingDelta(1) + "_|";
+					}
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+			
+			b += "\nK-Deltas if black to move";
+			
+			b += "\n   ___ ___ ___ ___ ___ ___ ___ ___ ___ ___\n";
+			for(int i = 9; i >= 0; i--){
+				if(i < 9){b += (i + 1) + " |";}
+				else{b += (i + 1) + "|";}
+				
+				for(int j = 0; j < 10; j++){
+					int square = this.board[i][j].val();
+
+					if(square == 2) {
+						b += "_B_|";
+					} else if(square == 1) {
+						b += "_W_|";
+					} else if(square == -1) {
+						b += "_X_|";
+					} else {
+						b += "_" + ((Blank)board[i][j]).getKingDelta(2) + "_|";
+					}
+				}
+				b += "\n";
+			}
+			
+			b += "    a   b   c   d   e   f   g   h   i   j\n";
+			
+			return b;
 		}
 }
