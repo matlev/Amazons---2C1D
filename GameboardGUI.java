@@ -1,9 +1,14 @@
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
+
 import javax.swing.*;
 import javax.swing.border.*;
+
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Stack;
+
 import javax.imageio.ImageIO;
 
 public class GameboardGUI {
@@ -11,10 +16,12 @@ public class GameboardGUI {
     private final JPanel gui = new JPanel(new BorderLayout(3, 3));
     private JButton[][] chessBoardSquares = new JButton[10][10];
     private Image[][] chessPieceImages = new Image[2][6];
+	private Stack<Object[]> moveHistory = new Stack();
     private JPanel chessBoard;
     private static final String COLS = "ABCDEFGHIJ";
     public static final int QUEEN = 1;
     public static final int BLACK = 0, WHITE = 1;
+	private Gamepiece[][] board;
 
     GameboardGUI() {
         initializeGui();
@@ -153,6 +160,36 @@ public class GameboardGUI {
         }
     }
 
+    public void updateBoard(String[] move) {
+    	// split the first parameter on the "-" symbol (so a7-b7 gets stored in a String array with String[0] => "a7" and String[1] => "b7")
+    	String[] queenMove = move[0].split("-");
+    	
+    	// get the x-coordinate characters
+    	char queenFromXChar = queenMove[0].charAt(0);
+    	char queenToXChar = queenMove[1].charAt(0);
+    	char arrowXChar = move[1].charAt(0);
+
+    	// convert everything into ints
+    	int queenFromX = (queenFromXChar > 96 ? queenFromXChar - 97 : queenFromXChar - 65);
+    	int queenToX = (queenToXChar > 96 ? queenToXChar - 97 : queenToXChar - 65);
+    	int arrowX = (arrowXChar > 96 ? arrowXChar - 97 : arrowXChar - 65);
+    	int queenFromY = Integer.parseInt(queenMove[0].substring(1));
+    	int queenToY = Integer.parseInt(queenMove[1].substring(1));
+    	int arrowY = Integer.parseInt(move[1].substring(1));
+
+    	// Get the queen icon from the "from" square
+    	JButton queen = chessBoardSquares[queenFromX][queenFromY];
+
+    	// Set the queen's starting location to a blank square
+    	chessBoardSquares[queenFromX][queenFromY].setIcon(null);
+
+    	// Set the "to" location to have our saved icon
+    	chessBoardSquares[queenToX][queenToY].setIcon(queen);
+
+    	// Mark off the arrow's landing square as a red square
+    	((JButton) chessBoardSquares[arrowX][arrowY]).setColor(Color.RED);
+    }
+    
     public static void main(String[] args) {
         Runnable r = new Runnable() {
 
