@@ -91,8 +91,8 @@ public class AI {
 				}
 				
 				// Convert the array into a string array with the format [0] => "a7-b7", [1] => "b5"
-				move[0] = ((char)(m[0] + 97)) + "" + (m[1] + 1) + "-" + ((char)(m[2] + 97)) + "" + (m[3] + 1);
-				move[1] = ((char)(m[4] + 97)) + "" + (m[5] + 1);
+				move[0] = ((char)(m[0] + 97)) + "" + (m[1]) + "-" + ((char)(m[2] + 97)) + "" + (m[3]);
+				move[1] = ((char)(m[4] + 97)) + "" + (m[5]);
 				
 				// Play the move on the AI's g_board, set the root to this node and break out of the loop
 				g_board.doMove(n.move);
@@ -108,9 +108,9 @@ public class AI {
 			}
 		}
 		
-		if(leaves <= 2000) {
-			max_depth++;
-		}
+//		if(leaves <= 3500) {
+//			max_depth++;
+//		}
 		
 		/*
 		 * Start the think() thread
@@ -2255,6 +2255,22 @@ public class AI {
 	}
 	
 	public void playMove(int move) {
+		g_board.doMove(move);
+	}
+	
+	public void playMoveServer(String from, String to, String arrow) {
+		char qfromXChar = from.charAt(0);
+		char qtoXChar = to.charAt(0);
+		char arrowXChar = arrow.charAt(0);
+		
+		int qfromX = (qfromXChar > 96 ? qfromXChar - 97 : qfromXChar - 65);
+		int qfromY = Integer.parseInt(from.substring(1));
+		int qtoX = (qtoXChar > 96 ? qtoXChar - 97 : qtoXChar - 65);
+		int qtoY = Integer.parseInt(to.substring(1));
+		int arrowX = (arrowXChar > 96 ? arrowXChar - 97 : arrowXChar - 65);
+		int arrowY = Integer.parseInt(arrow.substring(1));
+		
+		int move = qfromX + (qfromY << 4) + (qtoX << 8) + (qtoY << 12) + (arrowX << 16) + (arrowY << 20);
 		g_board.doMove(move);
 	}
 	

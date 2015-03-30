@@ -1,5 +1,7 @@
 import java.util.*;
 
+import javax.swing.JFrame;
+
 import ubco.ai.GameRoom;
 import ubco.ai.connection.ServerMessage;
 import ubco.ai.games.GameClient;
@@ -17,6 +19,7 @@ import net.n3.nanoxml.IXMLElement;
 
 public class Amazons implements GamePlayer {
 
+	GameboardGUI cg;
 	Gameboard ai_board = null;
 	AI ai = null;
 	float score = 0;
@@ -40,10 +43,27 @@ public class Amazons implements GamePlayer {
 	 */
 	public Amazons(String name, String passwd) {
 		
+		// Set up the gui
+		cg = new GameboardGUI();
+
+		JFrame f = new JFrame("AmazonsChamp");
+		f.add(cg.getGui());
+
+		f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		f.setLocationByPlatform(true);
+
+		// ensures the frame is the minimum size it needs to be
+		// in order display the components within it
+		f.pack();
+		// ensures the minimum size is enforced.
+		f.setMinimumSize(f.getSize());
+		f.setVisible(true);
+		
 		//A player has to maintain an instance of GameClient, and register itself with the  
 		//GameClient. Whenever there is a message from the server, the Gameclient will invoke 
 		//the player's handleMessage() method.
 		//Three arguments: user name (any), passwd (any), this (delegate)   
+		usrName = name;
 		gameClient = new GameClient(name,passwd,this);
     	roomlist = gameClient.getRoomLists();
 
@@ -57,7 +77,7 @@ public class Amazons implements GamePlayer {
 	
 	public void joinRoom(int i) {
 		//Join room
-    	currentRoom = gameClient.roomList.get(i);
+    	currentRoom = gameClient.roomList.get(i - 2);
     	roomID = currentRoom.roomID;
     	gameClient.joinGameRoom(currentRoom.roomName);
 	}
@@ -79,8 +99,7 @@ public class Amazons implements GamePlayer {
 			System.out.println("Room joined.");
 		}
 		else if (type.equals(GameMessage.ACTION_GAME_START)){
-			Gameboard ai_board = new Gameboard();
-			AI ai = null;
+			 ai_board = new Gameboard();
 
 			this.gameStarted = true;
 			
@@ -105,8 +124,9 @@ public class Amazons implements GamePlayer {
 					ai = new AI(ai_board, 1);
 					moves = ai.search();
 
-					sendToServer(moves[0] ,moves[1] ,roomID);	
+					sendToServer(moves[0], moves[1], roomID);	
 					
+					cg.updateBoard(moves);
 					System.out.print(ai_board);
 					
 					score = ai.getScore();
@@ -152,8 +172,13 @@ public class Amazons implements GamePlayer {
 		IXMLElement c2 = xml.getFirstChildNamed("arrow");
 		String amove = c2.getAttribute("move", "default");
 		
-		ai.playMove(queenMove[0], queenMove[1], amove);
+		String[] move = new String[]{qmove, amove};
+		cg.updateBoard(move);
+		
+		ai.playMoveServer(queenMove[0], queenMove[1], amove);
 		moves = ai.search();
+		
+		cg.updateBoard(moves);
 		
 		System.out.print(ai_board);
 		
@@ -184,35 +209,15 @@ public class Amazons implements GamePlayer {
 	
 	public static void main(String[] args){
 		
-		Amazons sp = new Amazons("kk","her");
-		
+		Amazons sp = new Amazons("team9player3","her");
+
 		Scanner scan = new Scanner(System.in);
-		
+
 		System.out.print("Enter a room number to join: ");
 		int room = scan.nextInt();
-		
+
 		sp.joinRoom(room);
+
 		
-//		 Runnable r = new Runnable() {
-//
-//	            @Override
-//	            public void run() {
-//	                GameboardGUI cg = new GameboardGUI();
-//
-//	                JFrame f = new JFrame("AmazonsChamp");
-//	                f.add(cg.getGui());
-//	                
-//	                f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-//	                f.setLocationByPlatform(true);
-//
-//	                // ensures the frame is the minimum size it needs to be
-//	                // in order display the components within it
-//	                f.pack();
-//	                // ensures the minimum size is enforced.
-//	                f.setMinimumSize(f.getSize());
-//	                f.setVisible(true);
-//	            }
-//	        };
-//	        SwingUtilities.invokeLater(r);
 	}
 }

@@ -34,7 +34,7 @@ public class GameboardGUI {
 
         // set up the main GUI
         gui.setBorder(new EmptyBorder(5, 5, 5, 5));
-      //  gui.add(BorderLayout.PAGE_START);
+        //  gui.add(BorderLayout.PAGE_START);
 
 
 
@@ -116,11 +116,11 @@ public class GameboardGUI {
                     SwingConstants.CENTER));
         }
         // fill the black non-pawn piece row
-        for (int ii = 0; ii < 10; ii++) {
+        for (int ii = 9; ii >= 0; ii--) {
             for (int jj = 0; jj < 10; jj++) {
                 switch (jj) {
                     case 0:
-                        chessBoard.add(new JLabel("" + (11-(ii + 1)),
+                        chessBoard.add(new JLabel("" + ii,
                                 SwingConstants.CENTER));
                     default:
                         chessBoard.add(chessBoardSquares[jj][ii]);
@@ -129,16 +129,16 @@ public class GameboardGUI {
         }
         
         // Fill squares with the black queen pieces
-        chessBoardSquares[0][3].setIcon(new ImageIcon(chessPieceImages[BLACK][QUEEN]));
-        chessBoardSquares[3][0].setIcon(new ImageIcon(chessPieceImages[BLACK][QUEEN]));
-        chessBoardSquares[6][0].setIcon(new ImageIcon(chessPieceImages[BLACK][QUEEN]));
-        chessBoardSquares[9][3].setIcon(new ImageIcon(chessPieceImages[BLACK][QUEEN]));
+        chessBoardSquares[0][3].setIcon(new ImageIcon(chessPieceImages[WHITE][QUEEN]));
+        chessBoardSquares[3][0].setIcon(new ImageIcon(chessPieceImages[WHITE][QUEEN]));
+        chessBoardSquares[6][0].setIcon(new ImageIcon(chessPieceImages[WHITE][QUEEN]));
+        chessBoardSquares[9][3].setIcon(new ImageIcon(chessPieceImages[WHITE][QUEEN]));
         
         // Fill squares with the white queen pieces
-        chessBoardSquares[0][6].setIcon(new ImageIcon(chessPieceImages[WHITE][QUEEN]));
-        chessBoardSquares[3][9].setIcon(new ImageIcon(chessPieceImages[WHITE][QUEEN]));
-        chessBoardSquares[6][9].setIcon(new ImageIcon(chessPieceImages[WHITE][QUEEN]));
-        chessBoardSquares[9][6].setIcon(new ImageIcon(chessPieceImages[WHITE][QUEEN]));
+        chessBoardSquares[0][6].setIcon(new ImageIcon(chessPieceImages[BLACK][QUEEN]));
+        chessBoardSquares[3][9].setIcon(new ImageIcon(chessPieceImages[BLACK][QUEEN]));
+        chessBoardSquares[6][9].setIcon(new ImageIcon(chessPieceImages[BLACK][QUEEN]));
+        chessBoardSquares[9][6].setIcon(new ImageIcon(chessPieceImages[BLACK][QUEEN]));
     }
 
     public final JComponent getGui() {
