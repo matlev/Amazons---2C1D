@@ -18,6 +18,7 @@ public class AI {
 	private static double alpha, beta;
 	
 	// Shared
+	private short turns = 0;
 	private boolean mcts = false;
 	private static final int ARROW = -1, BLANK = 0, WHITE = 1, BLACK = 2; 
 	private int player;
@@ -33,18 +34,18 @@ public class AI {
 		root = new Node();
 	}
 	
-	public AI(Gameboard g_board, int player, boolean MCTS) {
-		if(MCTS) {
-			this.g_board = g_board;
-			this.player = player;
+//	public AI(Gameboard g_board, int player, boolean MCTS) {
+//		if(MCTS) {
+//			this.g_board = g_board;
+//			this.player = player;
 //			mctsBoard = createBoard(g_board.getBoard());
-			root = new Node();
-			firstMoves = new ArrayList<Node>();
-			mcts = true;
-		} else {
-			new AI(g_board, player);
-		}
-	}
+//			root = new Node();
+//			firstMoves = new ArrayList<Node>();
+//			mcts = true;
+//		} else {
+//			new AI(g_board, player);
+//		}
+//	}
 	
 /*
  * **************************
@@ -58,6 +59,75 @@ public class AI {
 	// Runs a a search for the best move in the current position of the g_board.  Initially uses an alpha-beta minimax search
 	// and switches to a heuristic-influenced Monte Carlo simulation once the g_board is fully partitioned.  Returns a string
 	// array containing the queen move and the square the arrow is shot to.
+	public String[] search(boolean hybrid) {
+		/*
+		 * Interrupt the think() thread so we can have the updated game tree
+		 */
+		
+		// MCTS and minimax response vars, respectively
+		int[] response = null;
+		String[] move = new String[2];
+		int encodedM = 0;
+		int[] m = new int[6];
+		
+		if(mcts) {
+			mctsBoard = createBoard(g_board.getBoard());
+			response = mcts();
+		} else {
+			root.setScore(0);
+			leaves = 0;
+			
+			// Find the max or min value for the white or black player respectively
+			float val = alphaBeta(root, max_depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, player);
+			
+			// Retrieve the move that has the min/max vlaue
+			ArrayList<Node> moves = root.getChildren();
+			for(Node n : moves) {
+				if(Float.compare(n.value, val) == 0) {
+					encodedM = n.move;
+					
+					// Play the move on the AI's g_board, set the root to this node and break out of the loop
+					g_board.doMove(n.move);
+					
+					break;
+				}
+			}
+			
+			// Switch to Monte Carlo after a set amount of moves
+			turns += 2;
+			if(turns > 40) {
+				mcts = true;
+				firstMoves = new ArrayList<Node>();
+			}
+		}
+		
+		// Reset the root rather than set it to a branch since we can currently only achieve a depth of 2-ply
+		root.getChildren().clear();
+		
+		// If we ran MCTS
+		if(response != null) {
+			encodedM = response[0];
+			System.out.println("Simulations run: " + response[3] + "\tConfidence: " + response[1] + "%");
+		}
+		
+		// Decode the move
+		for(int i = 0; i < 6; i++) {
+			m[i] = encodedM & 0xf;
+			encodedM >>= 4;
+		}
+		
+		// Convert the array into a string array with the format [0] => "a7-b7", [1] => "b5"
+		move[0] = ((char)(m[0] + 97)) + "" + (m[1]) + "-" + ((char)(m[2] + 97)) + "" + (m[3]);
+		move[1] = ((char)(m[4] + 97)) + "" + (m[5]);
+		
+		/*
+		 * Start the think() thread
+		 */
+		
+		return move;
+	}
+	
+	// Pure alpha-beta minimax search
 	public String[] search() {
 		
 		root.setScore(0);
@@ -99,9 +169,9 @@ public class AI {
 			}
 		}
 		
-//		if(leaves <= 3500) {
-//			max_depth++;
-//		}
+		if(leaves <= 2000) {
+			max_depth++;
+		}
 		
 		/*
 		 * Start the think() thread
@@ -2282,8 +2352,9 @@ public class AI {
 	// win/loss ratio.
 	public int[] mcts() {
 		// Get first set of children
-		if(this.firstMoves.isEmpty()) {
+		if(firstMoves.isEmpty()) {
 			generateFirstMap(root, mctsBoard, player);
+			firstMoves = root.children;
 		}
 		
 		// Initialize simulation variables
@@ -2298,7 +2369,6 @@ public class AI {
 			gboard = mctsBoard.clone();
 			
 			if(simulations == 0) {
-				Random rand = new Random();
 				maxNode = (Node)firstMoves.get(rand.nextInt(firstMoves.size()));
 			} else {
 				float maxScore = 0;
@@ -2311,13 +2381,19 @@ public class AI {
 						maxNode = child;
 					}
 				}
+				
+				// If none of the nodes had a score greater than 0 (common in first few sims) randomly select another node
+				if(maxNode == null) {
+					System.out.println("Picking another random node...");
+					maxNode = (Node)firstMoves.get(rand.nextInt(firstMoves.size()));
+				}
 			}
 			
-			maxNode.simulations++;
+			maxNode.sims++;
 			
 			simulate(maxNode, gboard, player);
 			simulations++;
-		} while((System.currentTimeMillis() - timer) < 28);
+		} while((System.currentTimeMillis() - timer) < 28000);
 		
 		// ****************************************************************************************************************************
 		// Recalculates the score for each node as a percentage of the highest simulation count.  So the node
@@ -2331,7 +2407,7 @@ public class AI {
 		double highScore = 0, temp = 0;
 		
 		for(Node child : firstMoves) {
-			maxSims = Math.max(maxSims, child.simulations);
+			maxSims = Math.max(maxSims, child.sims);
 		}
 		
 		for(Node child : firstMoves) {
@@ -2350,9 +2426,9 @@ public class AI {
 		mctsDoMove(move, mctsBoard, player);
 		g_board.doMove(move);
 		
-		int[] response = new int[]{move, (int)highScore*100, winningMove.simulations, simulations};
+		int[] response = new int[]{move, (int)(highScore*100), winningMove.sims, simulations};
 		simulations = 0;
-		firstMoves = null;
+		firstMoves.clear();
 		
 		return response;
 	}
@@ -2375,7 +2451,7 @@ public class AI {
 	// but we still need to check if the node's personal simulation count is 0
 	private void calculatePickMeScore(Node n) {
 		// Force a simulation count of 1 if this node has never been simulated
-		int numSims = (n.simulations == 0 ? 1 : n.simulations);
+		int numSims = (n.sims == 0 ? 1 : n.sims);
 		int winCount = (player == WHITE ? n.whiteWin : n.blackWin);
 		n.value = (float)(winCount/numSims + 1.4*Math.sqrt(Math.log(simulations)/numSims));
 	}
@@ -2459,8 +2535,10 @@ public class AI {
 			for(int y = 0; y <= 9; y++){
 				if(shotmap[y*GRID+x] >= 0){ // need 0 because orign point is 0*65536 = 0
 					int move = (((shotmap[y*GRID+x]&0xffff) << 16) | valueMove);
-					parent.addChild(new Node(move,parent));
-					count++;
+					if(move != 0) {
+						parent.addChild(new Node(move,parent));
+//						count++;
+					}
 				}
 			}
 		}
@@ -2500,35 +2578,35 @@ public class AI {
 		private int whiteWin;
 		private int blackWin;
 		private int move;
-		private int simulations;
+		private int sims;
 		
 		public Node() {
-			parent = null;
-			children = null;
-			value = 0;
-			move = 0;
-			simulations = 0;
-			whiteWin = 0;
-			blackWin = 0;
+			this.parent = null;
+			this.children = null;
+			this.value = 0;
+			this.move = 0;
+			this.sims = 0;
+			this.whiteWin = 0;
+			this.blackWin = 0;
 		}
 		
 		public Node(int move) {
-			parent = null;
-			children = null;
-			value = 0;
-			simulations = 0;
-			whiteWin = 0;
-			blackWin = 0;
+			this.parent = null;
+			this.children = null;
+			this.value = 0;
+			this.sims = 0;
+			this.whiteWin = 0;
+			this.blackWin = 0;
 			this.move = move;
 		}
 		
 		public Node(int move, Node parent) {
 			this.parent = parent;
-			children = null;
-			value = 0;
-			simulations = 0;
-			whiteWin = 0;
-			blackWin = 0;
+			this.children = null;
+			this.value = 0;
+			this.sims = 0;
+			this.whiteWin = 0;
+			this.blackWin = 0;
 			this.move = move;
 		}
 		
