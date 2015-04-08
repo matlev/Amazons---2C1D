@@ -209,7 +209,7 @@ public class Amazons implements GamePlayer {
 	
 	public static void main(String[] args){
 		
-		Amazons sp = new Amazons("team9player3","her");
+		Amazons sp = new Amazons("team9player1","her");
 
 		Scanner scan = new Scanner(System.in);
 
@@ -218,6 +218,5 @@ public class Amazons implements GamePlayer {
 
 		sp.joinRoom(room);
 
-		
 	}
 }

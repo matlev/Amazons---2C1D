@@ -3,6 +3,7 @@ import java.util.Random;
 
 public class AI {
 	// MCTS variables
+	Random rand = new Random();
 	private ArrayList<Node> firstMoves;
 	private long count = 0;
 	private final int[][] generateFirstMapList = new int[4][100];
@@ -17,6 +18,7 @@ public class AI {
 	private static double alpha, beta;
 	
 	// Shared
+	private boolean mcts = false;
 	private static final int ARROW = -1, BLANK = 0, WHITE = 1, BLACK = 2; 
 	private int player;
 	private Node root;
@@ -35,9 +37,10 @@ public class AI {
 		if(MCTS) {
 			this.g_board = g_board;
 			this.player = player;
-			mctsBoard = createBoard(g_board.getBoard());
+//			mctsBoard = createBoard(g_board.getBoard());
 			root = new Node();
 			firstMoves = new ArrayList<Node>();
+			mcts = true;
 		} else {
 			new AI(g_board, player);
 		}
@@ -56,14 +59,6 @@ public class AI {
 	// and switches to a heuristic-influenced Monte Carlo simulation once the g_board is fully partitioned.  Returns a string
 	// array containing the queen move and the square the arrow is shot to.
 	public String[] search() {
-		
-//		if(Double.compare(root.getScore(), 0) == 0) {
-//			alpha = Double.NEGATIVE_INFINITY;
-//			beta = Double.POSITIVE_INFINITY;
-//		} else {
-//			alpha = root.getScore() - 4;
-//			beta = root.getScore() + 4;
-//		}
 		
 		root.setScore(0);
 		leaves = 0;
@@ -96,10 +91,6 @@ public class AI {
 				
 				// Play the move on the AI's g_board, set the root to this node and break out of the loop
 				g_board.doMove(n.move);
-				
-				/* This is only helpful if we can search 3+ ply into a tree.  
-				 * root = n;
-				 */
 				
 				// Reset the root rather than set it to a branch since we can currently only achieve a depth of 2-ply
 				root.getChildren().clear();
@@ -2285,59 +2276,99 @@ public class AI {
  * *******************************
  */
 
-	// Runs an UCT MCTS given a starting position.  First generates a list of moves and randomly selects
+	// Runs an UCB MCTS given a starting position.  First generates a list of moves and randomly selects
 	// one as its initial simulation point.  It then updates and maintains a "confidence" score for each
 	// node and selects the next node to simulate with the highest score. Returns the node with the highest
 	// win/loss ratio.
-	public int mcts() {
+	public int[] mcts() {
 		// Get first set of children
 		if(this.firstMoves.isEmpty()) {
 			generateFirstMap(root, mctsBoard, player);
 		}
 		
-		Node maxNode = null;
+		// Initialize simulation variables
+		long timer = System.currentTimeMillis();
+		Node maxNode;
+		int[] gboard;
 		
-		if(simulations == 0) {
-			Random rand = new Random();
-			maxNode = (Node)firstMoves.get(rand.nextInt(firstMoves.size()));
-		} else {
-			float maxScore = 0;
+		// Run simulations for 28 seconds.  On the first simulation randomly select a first move to explore,
+		// otherwise calculate the UCB scores for each first child, select the highest scoring node and simulate it.
+		do {
+			maxNode = null;
+			gboard = mctsBoard.clone();
 			
-			for(Node child : firstMoves) {
-				calculatePickMeScore(child);
+			if(simulations == 0) {
+				Random rand = new Random();
+				maxNode = (Node)firstMoves.get(rand.nextInt(firstMoves.size()));
+			} else {
+				float maxScore = 0;
 				
-				if(child.value > maxScore) {
-					maxScore = child.value;
-					maxNode = child;
+				for(Node child : firstMoves) {
+					calculatePickMeScore(child);
+					
+					if(child.value > maxScore) {
+						maxScore = child.value;
+						maxNode = child;
+					}
 				}
 			}
-		}
 			
-		simulate(maxNode, player);
+			maxNode.simulations++;
+			
+			simulate(maxNode, gboard, player);
+			simulations++;
+		} while((System.currentTimeMillis() - timer) < 28);
 		
-		return root.getChildren().size();
+		// ****************************************************************************************************************************
+		// Recalculates the score for each node as a percentage of the highest simulation count.  So the node
+		// that has the highest simulation count will have an unchanged win/loss ratio, while other nodes with a lower 
+		// sim count will have a reduced score to reflect the confidence of that win %age.  In this way, a node that had
+		// slightly less simulations than the highest simulated node - but a higher win ratio - has the possibility of being
+		// the successor move rather than just naively picking the most simulated node.
+		// ****************************************************************************************************************************
+		int maxSims = 0, numWins = 0;
+		Node winningMove = null;
+		double highScore = 0, temp = 0;
+		
+		for(Node child : firstMoves) {
+			maxSims = Math.max(maxSims, child.simulations);
+		}
+		
+		for(Node child : firstMoves) {
+			numWins = (player == WHITE ? child.whiteWin : child.blackWin);
+			
+			temp = (double)numWins/(double)maxSims;
+			if(temp > highScore) {
+				highScore = temp;
+				winningMove = child;
+			}
+		}
+		
+		// Play the move on the AI's respective boards and return it
+		int move = winningMove.move;
+		
+		mctsDoMove(move, mctsBoard, player);
+		g_board.doMove(move);
+		
+		int[] response = new int[]{move, (int)highScore*100, winningMove.simulations, simulations};
+		simulations = 0;
+		firstMoves = null;
+		
+		return response;
 	}
 	
 	// Dives down the tree to a terminating node, evaluates it as a win or a loss, and trickles back up.
-	private void simulate(Node maxNode, int player) {
-		mctsDoMove(maxNode.move, mctsBoard, player);
+	private void simulate(Node maxNode, int[] gboard, int player) {
+		mctsDoMove(maxNode.move, gboard, player);
 		
-		generateFirstMap(maxNode, mctsBoard, 3 - player);
+		generateFirstMap(maxNode, gboard, 3 - player);
 		
 		if(maxNode.getChildren() != null && !maxNode.getChildren().isEmpty()) {
-			Random rand = new Random();
 			ArrayList<Node> children = maxNode.getChildren();
-			simulate(children.get(rand.nextInt(children.size())), 3 - player);
+			simulate(children.get(rand.nextInt(children.size())), gboard, 3 - player);
 		} else {
-			if(player == WHITE) {
-				maxNode.whiteWin++;
-			} else {
-				maxNode.blackWin++;
-			}
+			maxNode.trickleWinUp(player);
 		}
-		
-		
-		
 	}
 	
 	// Calculate the UCT value for a node.  We only call this function if simulations > 0,
