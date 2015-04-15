@@ -1,3 +1,8 @@
+/****************************************************
+ * 
+ * @author Mathew Levasseur
+ *
+ ****************************************************/
 
 public class WhiteQueen extends Gamepiece{
 
@@ -61,7 +66,7 @@ public class WhiteQueen extends Gamepiece{
         for(int[] offset : MATRIX){
             for(yOff = y+offset[0], xOff = x+offset[1]; (yOff > -1 && yOff < 10) && (xOff > -1 && xOff < 10); yOff += offset[0], xOff += offset[1]){
                 if(board[yOff][xOff] instanceof Blank){
-                    if(((Blank)board[yOff][xOff]).wq < 127) {
+                    if(((Blank)board[yOff][xOff]).bq < 127) {
                         val += Math.pow(2, -(stepSize - 1)) * (int)((Blank)board[yOff][xOff]).emptyNeighbours;
                     }
                     stepSize++;

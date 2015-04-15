@@ -1,3 +1,9 @@
+/****************************************************
+ * 
+ * @author Mathew Levasseur
+ *
+ ****************************************************/
+
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -2465,7 +2471,7 @@ public class AI {
 				if(board[i] == player){
 					queenPos[qCount][0] = i%10; // X
 					queenPos[qCount][1] = i/10; // Y
-					genQueenMovesMapBRETT(generateFirstMapList[qCount++], board, i);
+					genQueenMovesMap(generateFirstMapList[qCount++], board, i);
 					if(qCount > 3){break;}
 				}
 			}
@@ -2490,7 +2496,7 @@ public class AI {
 	}
 
 	// Creates a 10x10 map with the encoded queen+move values.
-	private void genQueenMovesMapBRETT(int[] list, int[] board, int queen) {
+	private void genQueenMovesMap(int[] list, int[] board, int queen) {
 		for(int i = 0; i < list.length; i++){
 			list[i] = 0;
 		}
